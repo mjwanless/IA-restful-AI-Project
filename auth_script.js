@@ -1,4 +1,7 @@
-// auth_script.js - Enhanced authentication functionality with intuitive notifications
+// auth_script.js - Enhanced authentication functionality with server integration
+
+// Configuration - Replace with your actual server URL
+const API_URL = 'http://localhost:3000/api';
 
 // Wait for DOM to be fully loaded before attaching event listeners
 document.addEventListener('DOMContentLoaded', function() {
@@ -47,15 +50,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (logoutBtnCard) {
             logoutBtnCard.addEventListener('click', handleLogout);
         }
+        
+        // Fetch and display user profile when on landing page
+        fetchUserProfile();
     }
 });
 
-// Check if user is authenticated via JWT cookie
+// Check if user is authenticated via JWT token
 function checkAuthState() {
     const currentPage = window.location.pathname.split('/').pop();
     
-    // Check for JWT token (for testing, we'll use localStorage since we can't set HttpOnly cookies in client-side JS)
-    // Note: In a real implementation, this would be checking for the existence of an HttpOnly cookie via server response
+    // Check for JWT token in localStorage
     const jwt = localStorage.getItem('jwt_token');
     const isLoggedIn = !!jwt;
     
@@ -70,6 +75,56 @@ function checkAuthState() {
         if (currentPage === 'landing.html') {
             window.location.href = 'login.html';
         }
+    }
+}
+
+// Fetch user profile data from the server
+async function fetchUserProfile() {
+    const jwt = localStorage.getItem('jwt_token');
+    if (!jwt) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/user/profile`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${jwt}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            // If token is invalid or expired, log out the user
+            if (response.status === 401 || response.status === 403) {
+                handleLogout();
+                return;
+            }
+            throw new Error('Failed to fetch profile');
+        }
+        
+        const userData = await response.json();
+        
+        // Display user data on the page
+        const userEmailElement = document.getElementById('userEmail');
+        if (userEmailElement) {
+            userEmailElement.textContent = userData.email;
+        }
+        
+        // Display API calls count if that element exists
+        const apiCallsElement = document.getElementById('apiCallsCount');
+        if (apiCallsElement) {
+            apiCallsElement.textContent = userData.apiCallsCount || 0;
+        }
+        
+        // If user is admin, maybe show admin controls
+        if (userData.isAdmin) {
+            const adminPanel = document.getElementById('adminPanel');
+            if (adminPanel) {
+                adminPanel.style.display = 'block';
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        showNotification('Error loading profile data', 'error');
     }
 }
 
@@ -178,7 +233,7 @@ function showFormError(inputElement, message) {
     }, { once: true });
 }
 
-// Handle user signup
+// Handle user signup - Now connects to the backend
 async function handleSignup() {
     const emailInput = document.getElementById('signupEmail');
     const passwordInput = document.getElementById('signupPassword');
@@ -204,6 +259,9 @@ async function handleSignup() {
     if (!password) {
         showFormError(passwordInput, 'Password is required');
         isValid = false;
+    } else if (password.length < 6) {
+        showFormError(passwordInput, 'Password must be at least 6 characters');
+        isValid = false;
     }
     
     if (confirmPasswordInput && password !== confirmPassword) {
@@ -218,46 +276,47 @@ async function handleSignup() {
     
     if (!isValid) return;
     
-    // For demo purposes, we'll simulate server-side actions
     try {
         // Show loading indicator
         const loadingNotification = showNotification('Creating your account...', 'info');
         
-        // Simulate password hashing with bcrypt
-        // In a real application, this would be done server-side
-        const hashedPassword = await simulateBcryptHash(password);
-        
-        // Check if user already exists in localStorage
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        if (users.some(user => user.email === email)) {
-            // Remove loading notification
-            document.getElementById('notification-container').removeChild(loadingNotification);
-            showNotification('A user with this email already exists.', 'error');
-            return;
-        }
-        
-        // Add new user with hashed password
-        users.push({
-            email: email,
-            password: hashedPassword,
-            createdAt: new Date().toISOString()
+        // Send registration request to the server
+        const response = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                password
+            })
         });
-        
-        // Save users to localStorage
-        localStorage.setItem('users', JSON.stringify(users));
-        
-        // Generate JWT token and store it
-        // In a real application, the JWT would be set as an HttpOnly cookie by the server
-        const token = generateJWT(email);
-        localStorage.setItem('jwt_token', token);
         
         // Remove loading notification
         document.getElementById('notification-container').removeChild(loadingNotification);
         
+        if (!response.ok) {
+            const errorData = await response.json();
+            showNotification(errorData.error || 'Registration failed', 'error');
+            return;
+        }
+        
+        const data = await response.json();
+        
+        // Store the JWT token in localStorage
+        localStorage.setItem('jwt_token', data.token);
+        
+        // Also store user data for quick access
+        localStorage.setItem('user_data', JSON.stringify({
+            id: data.user.id,
+            email: data.user.email,
+            isAdmin: data.user.isAdmin
+        }));
+        
         // Show success message
         showNotification('Registration successful! Redirecting to dashboard...', 'success');
         
-        // Redirect after a short delay (for the user to see the success message)
+        // Redirect after a short delay
         setTimeout(() => {
             window.location.href = 'landing.html';
         }, 2000);
@@ -267,7 +326,7 @@ async function handleSignup() {
     }
 }
 
-// Handle user login
+// Handle user login - Now connects to the backend
 async function handleLogin() {
     const emailInput = document.getElementById('loginEmail');
     const passwordInput = document.getElementById('loginPassword');
@@ -314,40 +373,50 @@ async function handleLogin() {
         // Show loading indicator
         const loadingNotification = showNotification('Signing in...', 'info');
         
-        // Get users from localStorage
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        const user = users.find(user => user.email === email);
-        
-        // Simulate server delay
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // If no user found or password doesn't match
-        if (!user || !(await simulateBcryptVerify(password, user.password))) {
-            // Increment failed login attempts
-            sessionStorage.setItem('loginAttempts', (loginAttempts + 1).toString());
-            
-            // Remove loading notification
-            document.getElementById('notification-container').removeChild(loadingNotification);
-            
-            showNotification('Invalid email or password.', 'error');
-            return;
-        }
-        
-        // Login successful - reset login attempts
-        sessionStorage.setItem('loginAttempts', '0');
-        
-        // Generate and store JWT token
-        // In a real application, this would be an HttpOnly cookie set by the server
-        const token = generateJWT(email);
-        localStorage.setItem('jwt_token', token);
+        // Send login request to the server
+        const response = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                password
+            })
+        });
         
         // Remove loading notification
         document.getElementById('notification-container').removeChild(loadingNotification);
         
+        if (!response.ok) {
+            // Increment failed login attempts
+            sessionStorage.setItem('loginAttempts', (loginAttempts + 1).toString());
+            
+            const errorData = await response.json();
+            showNotification(errorData.error || 'Login failed', 'error');
+            return;
+        }
+        
+        const data = await response.json();
+        
+        // Login successful - reset login attempts
+        sessionStorage.setItem('loginAttempts', '0');
+        
+        // Store the JWT token in localStorage
+        localStorage.setItem('jwt_token', data.token);
+        
+        // Also store user data for quick access
+        localStorage.setItem('user_data', JSON.stringify({
+            id: data.user.id,
+            email: data.user.email,
+            isAdmin: data.user.isAdmin,
+            apiCallsCount: data.user.apiCallsCount
+        }));
+        
         // Show success message
         showNotification('Login successful! Redirecting to dashboard...', 'success');
         
-        // Redirect after a short delay (for the user to see the success message)
+        // Redirect after a short delay
         setTimeout(() => {
             window.location.href = 'landing.html';
         }, 2000);
@@ -359,8 +428,9 @@ async function handleLogin() {
 
 // Handle user logout
 function handleLogout() {
-    // Clear JWT token
+    // Clear JWT token and user data
     localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user_data');
     
     // Show success message
     showNotification('You have been logged out successfully.', 'success');
@@ -379,50 +449,6 @@ function validateEmail(email) {
 
 // Make logout function available globally
 window.logout = handleLogout;
-
-// Simulate bcrypt password hashing (client-side simulation only)
-// In a real app, this would be done server-side
-async function simulateBcryptHash(password) {
-    // This is a simplified simulation, not actual bcrypt
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password + 'some_salt_value');
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// Simulate bcrypt password verification (client-side simulation only)
-async function simulateBcryptVerify(password, hashedPassword) {
-    const computedHash = await simulateBcryptHash(password);
-    return computedHash === hashedPassword;
-}
-
-// Generate a simple JWT token (client-side simulation only)
-function generateJWT(email) {
-    // In a real app, this would be done server-side with proper signing
-    const header = {
-        alg: 'HS256',
-        typ: 'JWT'
-    };
-    
-    const payload = {
-        sub: email,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
-    };
-    
-    // Base64 encode header and payload
-    const stringifiedHeader = JSON.stringify(header);
-    const stringifiedPayload = JSON.stringify(payload);
-    const encodedHeader = btoa(stringifiedHeader);
-    const encodedPayload = btoa(stringifiedPayload);
-    
-    // In a real JWT, this would be cryptographically signed
-    // This is just for simulation
-    const signature = btoa(encodedHeader + '.' + encodedPayload + 'secret');
-    
-    return `${encodedHeader}.${encodedPayload}.${signature}`;
-}
 
 // Add CSS animation for notifications
 const style = document.createElement('style');
