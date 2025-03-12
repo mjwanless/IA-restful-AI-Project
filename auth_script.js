@@ -1,4 +1,4 @@
-// auth_script.js - Enhanced authentication functionality for Lyrics Generator app
+// auth_script.js - Enhanced authentication functionality with intuitive notifications
 
 // Wait for DOM to be fully loaded before attaching event listeners
 document.addEventListener('DOMContentLoaded', function() {
@@ -11,6 +11,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set up failed login attempts tracking
     if (!sessionStorage.getItem('loginAttempts')) {
         sessionStorage.setItem('loginAttempts', '0');
+    }
+    
+    // Add notification container to the page if it doesn't exist
+    if (!document.getElementById('notification-container')) {
+        const notificationContainer = document.createElement('div');
+        notificationContainer.id = 'notification-container';
+        notificationContainer.style.position = 'fixed';
+        notificationContainer.style.top = '20px';
+        notificationContainer.style.right = '20px';
+        notificationContainer.style.zIndex = '1000';
+        document.body.appendChild(notificationContainer);
     }
     
     // Attach event listeners based on current page
@@ -62,37 +73,156 @@ function checkAuthState() {
     }
 }
 
+// Show notification message
+function showNotification(message, type = 'info') {
+    const container = document.getElementById('notification-container');
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span>${message}</span>
+            <button class="close-btn">&times;</button>
+        </div>
+    `;
+    
+    // Style the notification
+    notification.style.marginBottom = '10px';
+    notification.style.padding = '15px';
+    notification.style.borderRadius = '5px';
+    notification.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    notification.style.display = 'flex';
+    notification.style.justifyContent = 'space-between';
+    notification.style.alignItems = 'center';
+    notification.style.animation = 'fadeIn 0.3s ease-out';
+    
+    // Set colors based on notification type
+    if (type === 'success') {
+        notification.style.backgroundColor = '#d4edda';
+        notification.style.color = '#155724';
+        notification.style.borderLeft = '4px solid #28a745';
+    } else if (type === 'error') {
+        notification.style.backgroundColor = '#f8d7da';
+        notification.style.color = '#721c24';
+        notification.style.borderLeft = '4px solid #dc3545';
+    } else if (type === 'warning') {
+        notification.style.backgroundColor = '#fff3cd';
+        notification.style.color = '#856404';
+        notification.style.borderLeft = '4px solid #ffc107';
+    } else {
+        notification.style.backgroundColor = '#d1ecf1';
+        notification.style.color = '#0c5460';
+        notification.style.borderLeft = '4px solid #17a2b8';
+    }
+    
+    // Add close button functionality
+    const closeBtn = notification.querySelector('.close-btn');
+    closeBtn.style.background = 'none';
+    closeBtn.style.border = 'none';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.fontSize = '20px';
+    closeBtn.style.marginLeft = '10px';
+    closeBtn.style.color = 'inherit';
+    
+    closeBtn.addEventListener('click', function() {
+        container.removeChild(notification);
+    });
+    
+    // Add notification to container
+    container.appendChild(notification);
+    
+    // Auto-remove after 5 seconds for success messages
+    if (type === 'success') {
+        setTimeout(() => {
+            if (container.contains(notification)) {
+                container.removeChild(notification);
+            }
+        }, 5000);
+    }
+    
+    return notification;
+}
+
+// Show form validation errors in-page
+function showFormError(inputElement, message) {
+    // Remove any existing error message
+    const existingError = inputElement.parentElement.querySelector('.form-error');
+    if (existingError) {
+        existingError.remove();
+    }
+    
+    // Create error element
+    const errorElement = document.createElement('div');
+    errorElement.className = 'form-error';
+    errorElement.textContent = message;
+    errorElement.style.color = '#dc3545';
+    errorElement.style.fontSize = '0.875rem';
+    errorElement.style.marginTop = '5px';
+    
+    // Add error class to input
+    inputElement.classList.add('error-input');
+    inputElement.style.borderColor = '#dc3545';
+    
+    // Add error message after input
+    inputElement.parentElement.appendChild(errorElement);
+    
+    // Remove error when input changes
+    inputElement.addEventListener('input', function() {
+        const error = inputElement.parentElement.querySelector('.form-error');
+        if (error) {
+            error.remove();
+            inputElement.classList.remove('error-input');
+            inputElement.style.borderColor = '';
+        }
+    }, { once: true });
+}
+
 // Handle user signup
 async function handleSignup() {
-    const email = document.getElementById('signupEmail').value;
-    const password = document.getElementById('signupPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword')?.value;
-    const termsCheck = document.getElementById('termsCheck')?.checked;
+    const emailInput = document.getElementById('signupEmail');
+    const passwordInput = document.getElementById('signupPassword');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const termsCheckInput = document.getElementById('termsCheck');
+    
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    const confirmPassword = confirmPasswordInput?.value;
+    const termsCheck = termsCheckInput?.checked;
+    
+    let isValid = true;
     
     // Validate inputs
-    if (!email || !password) {
-        alert('Please fill in all required fields.');
-        return;
+    if (!email) {
+        showFormError(emailInput, 'Email is required');
+        isValid = false;
+    } else if (!validateEmail(email)) {
+        showFormError(emailInput, 'Please enter a valid email address');
+        isValid = false;
     }
     
-    if (confirmPassword && password !== confirmPassword) {
-        alert('Passwords do not match.');
-        return;
+    if (!password) {
+        showFormError(passwordInput, 'Password is required');
+        isValid = false;
     }
     
-    if (termsCheck !== undefined && !termsCheck) {
-        alert('You must agree to the Terms & Conditions.');
-        return;
+    if (confirmPasswordInput && password !== confirmPassword) {
+        showFormError(confirmPasswordInput, 'Passwords do not match');
+        isValid = false;
     }
     
-    // Basic email validation
-    if (!validateEmail(email)) {
-        alert('Please enter a valid email address.');
-        return;
+    if (termsCheckInput !== undefined && !termsCheck) {
+        showFormError(termsCheckInput, 'You must agree to the Terms & Conditions');
+        isValid = false;
     }
+    
+    if (!isValid) return;
     
     // For demo purposes, we'll simulate server-side actions
     try {
+        // Show loading indicator
+        const loadingNotification = showNotification('Creating your account...', 'info');
+        
         // Simulate password hashing with bcrypt
         // In a real application, this would be done server-side
         const hashedPassword = await simulateBcryptHash(password);
@@ -100,7 +230,9 @@ async function handleSignup() {
         // Check if user already exists in localStorage
         const users = JSON.parse(localStorage.getItem('users') || '[]');
         if (users.some(user => user.email === email)) {
-            alert('A user with this email already exists.');
+            // Remove loading notification
+            document.getElementById('notification-container').removeChild(loadingNotification);
+            showNotification('A user with this email already exists.', 'error');
             return;
         }
         
@@ -119,66 +251,44 @@ async function handleSignup() {
         const token = generateJWT(email);
         localStorage.setItem('jwt_token', token);
         
-        // Redirect to landing page
-        alert('Registration successful! Redirecting to dashboard...');
-        window.location.href = 'landing.html';
+        // Remove loading notification
+        document.getElementById('notification-container').removeChild(loadingNotification);
+        
+        // Show success message
+        showNotification('Registration successful! Redirecting to dashboard...', 'success');
+        
+        // Redirect after a short delay (for the user to see the success message)
+        setTimeout(() => {
+            window.location.href = 'landing.html';
+        }, 2000);
     } catch (error) {
         console.error('Registration error:', error);
-        alert('An error occurred during signup. Please try again.');
+        showNotification('An error occurred during signup. Please try again.', 'error');
     }
-    
-    /* 
-    // Server-side code (for future implementation)
-    // This would be implemented on your backend
-    
-    // Example server-side pseudocode:
-    try {
-        // Use parameterized query to prevent SQL injection
-        const userExists = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-        
-        if (userExists.length > 0) {
-            return res.status(400).json({ error: 'User already exists' });
-        }
-        
-        // Hash password with bcrypt
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-        
-        // Insert new user with parameterized query
-        await db.query(
-            'INSERT INTO users (email, password, created_at) VALUES (?, ?, ?)',
-            [email, hashedPassword, new Date()]
-        );
-        
-        // Generate JWT token
-        const token = jwt.sign({ userId: email }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        
-        // Set HttpOnly cookie with the JWT
-        res.cookie('token', token, { 
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 3600000 // 1 hour
-        });
-        
-        return res.status(201).json({ success: true });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: 'Server error' });
-    }
-    */
 }
 
 // Handle user login
 async function handleLogin() {
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
+    const emailInput = document.getElementById('loginEmail');
+    const passwordInput = document.getElementById('loginPassword');
+    
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    
+    let isValid = true;
     
     // Validate inputs
-    if (!email || !password) {
-        alert('Please enter both email and password.');
-        return;
+    if (!email) {
+        showFormError(emailInput, 'Email is required');
+        isValid = false;
     }
+    
+    if (!password) {
+        showFormError(passwordInput, 'Password is required');
+        isValid = false;
+    }
+    
+    if (!isValid) return;
     
     // Implement rate limiting for login attempts
     const loginAttempts = parseInt(sessionStorage.getItem('loginAttempts') || '0');
@@ -189,7 +299,7 @@ async function handleLogin() {
         // If it's been less than 15 minutes since last attempt, block login
         if (currentTime - lastAttemptTime < 15 * 60 * 1000) {
             const minutesLeft = Math.ceil((15 * 60 * 1000 - (currentTime - lastAttemptTime)) / (60 * 1000));
-            alert(`Too many failed login attempts. Please try again after ${minutesLeft} minutes.`);
+            showNotification(`Too many failed login attempts. Please try again after ${minutesLeft} minutes.`, 'error');
             return;
         } else {
             // Reset after timeout period
@@ -201,15 +311,25 @@ async function handleLogin() {
     sessionStorage.setItem('lastAttemptTime', new Date().getTime().toString());
     
     try {
+        // Show loading indicator
+        const loadingNotification = showNotification('Signing in...', 'info');
+        
         // Get users from localStorage
         const users = JSON.parse(localStorage.getItem('users') || '[]');
         const user = users.find(user => user.email === email);
+        
+        // Simulate server delay
+        await new Promise(resolve => setTimeout(resolve, 800));
         
         // If no user found or password doesn't match
         if (!user || !(await simulateBcryptVerify(password, user.password))) {
             // Increment failed login attempts
             sessionStorage.setItem('loginAttempts', (loginAttempts + 1).toString());
-            alert('Invalid email or password.');
+            
+            // Remove loading notification
+            document.getElementById('notification-container').removeChild(loadingNotification);
+            
+            showNotification('Invalid email or password.', 'error');
             return;
         }
         
@@ -221,71 +341,20 @@ async function handleLogin() {
         const token = generateJWT(email);
         localStorage.setItem('jwt_token', token);
         
-        // Redirect to landing page
-        alert('Login successful! Redirecting to dashboard...');
-        window.location.href = 'landing.html';
+        // Remove loading notification
+        document.getElementById('notification-container').removeChild(loadingNotification);
+        
+        // Show success message
+        showNotification('Login successful! Redirecting to dashboard...', 'success');
+        
+        // Redirect after a short delay (for the user to see the success message)
+        setTimeout(() => {
+            window.location.href = 'landing.html';
+        }, 2000);
     } catch (error) {
         console.error('Login error:', error);
-        alert('An error occurred during login. Please try again.');
+        showNotification('An error occurred during login. Please try again.', 'error');
     }
-    
-    /*
-    // Server-side code (for future implementation)
-    // This would be implemented on your backend
-    
-    // Example server-side pseudocode:
-    try {
-        // Implement rate limiting (could use Redis or similar for distributed systems)
-        const ipAddress = req.ip;
-        const rateLimitKey = `login_attempts:${ipAddress}`;
-        const attempts = await redisClient.get(rateLimitKey) || 0;
-        
-        if (attempts >= 5) {
-            return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
-        }
-        
-        // Use parameterized query to prevent SQL injection
-        const [user] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-        
-        if (!user) {
-            // Increment failed attempt counter
-            await redisClient.incr(rateLimitKey);
-            await redisClient.expire(rateLimitKey, 15 * 60); // 15 minutes expiry
-            
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-        
-        // Compare password with hashed password using bcrypt
-        const isMatch = await bcrypt.compare(password, user.password);
-        
-        if (!isMatch) {
-            // Increment failed attempt counter
-            await redisClient.incr(rateLimitKey);
-            await redisClient.expire(rateLimitKey, 15 * 60); // 15 minutes expiry
-            
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-        
-        // Reset login attempts on successful login
-        await redisClient.del(rateLimitKey);
-        
-        // Generate JWT token
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        
-        // Set HttpOnly cookie with the JWT
-        res.cookie('token', token, { 
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 3600000 // 1 hour
-        });
-        
-        return res.status(200).json({ success: true });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: 'Server error' });
-    }
-    */
 }
 
 // Handle user logout
@@ -293,18 +362,13 @@ function handleLogout() {
     // Clear JWT token
     localStorage.removeItem('jwt_token');
     
-    // Redirect to login page
-    alert('You have been logged out successfully.');
-    window.location.href = 'login.html';
+    // Show success message
+    showNotification('You have been logged out successfully.', 'success');
     
-    /*
-    // Server-side code (for future implementation)
-    // This would be implemented on your backend
-    
-    // Example server-side pseudocode:
-    res.clearCookie('token');
-    return res.status(200).json({ success: true });
-    */
+    // Redirect to login page after a short delay
+    setTimeout(() => {
+        window.location.href = 'login.html';
+    }, 2000);
 }
 
 // Helper function to validate email format
@@ -359,3 +423,13 @@ function generateJWT(email) {
     
     return `${encodedHeader}.${encodedPayload}.${signature}`;
 }
+
+// Add CSS animation for notifications
+const style = document.createElement('style');
+style.textContent = `
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+`;
+document.head.appendChild(style);
