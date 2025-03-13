@@ -336,11 +336,17 @@ async function handleSignup() {
 }
 
 async function handleLogin() {
+    console.log("Login function started");
+    console.log("Current hostname:", window.location.hostname);
+    console.log("Full API URL:", API_URL);
+
     const emailInput = document.getElementById("loginEmail");
     const passwordInput = document.getElementById("loginPassword");
 
     const email = emailInput.value;
     const password = passwordInput.value;
+
+    console.log("Login attempt details:", { email, password });
 
     let isValid = true;
 
@@ -359,6 +365,9 @@ async function handleLogin() {
     try {
         const loadingNotification = showNotification("Signing in...", "info");
 
+        console.log("Sending request to:", `${API_URL}/auth/login`);
+        console.log("Request payload:", JSON.stringify({ email, password }));
+
         const response = await fetch(`${API_URL}/auth/login`, {
             method: "POST",
             headers: {
@@ -370,17 +379,23 @@ async function handleLogin() {
             }),
         });
 
+        console.log("Response received:");
+        console.log("Status:", response.status);
+        console.log("Headers:", Object.fromEntries(response.headers.entries()));
+
         document.getElementById("notification-container").removeChild(loadingNotification);
 
         const responseData = await response.text();
-        console.log("Full response:", responseData);
+        console.log("Raw response body:", responseData);
 
         if (!response.ok) {
             let errorMessage = "Login failed";
             try {
                 const errorData = JSON.parse(responseData);
                 errorMessage = errorData.error || errorMessage;
-            } catch {
+                console.log("Parsed error data:", errorData);
+            } catch (parseError) {
+                console.error("Error parsing error response:", parseError);
                 errorMessage = responseData || errorMessage;
             }
 
@@ -391,6 +406,7 @@ async function handleLogin() {
         let data;
         try {
             data = JSON.parse(responseData);
+            console.log("Parsed successful response:", data);
         } catch (parseError) {
             console.error("Failed to parse response:", parseError);
             showNotification("Invalid server response", "error");
@@ -416,8 +432,8 @@ async function handleLogin() {
             setTimeout(() => (window.location.href = "landing.html"), 2000);
         }
     } catch (error) {
-        console.error("Login error:", error);
-        showNotification("Network error. Please try again.", "error");
+        console.error("Complete login error:", error);
+        showNotification(`Network error: ${error.message}`, "error");
     }
 }
 
