@@ -3,6 +3,20 @@ const API_URL =
 
 console.log("Auth script is running!");
 
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("DOM fully loaded");
+
+    const loginBtn = document.getElementById("loginBtn");
+    if (loginBtn) {
+        loginBtn.addEventListener("click", () => {
+            console.log("Login button clicked!");
+            handleLogin();
+        });
+    } else {
+        console.error("Login button not found");
+    }
+});
+
 document.addEventListener("DOMContentLoaded", function () {
     const currentPage = window.location.pathname.split("/").pop();
 
