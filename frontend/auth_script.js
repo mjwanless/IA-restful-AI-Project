@@ -1,4 +1,5 @@
-const API_URL = "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
+const API_URL =
+    window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
 
 document.addEventListener("DOMContentLoaded", function () {
     const currentPage = window.location.pathname.split("/").pop();
@@ -287,13 +288,30 @@ async function handleSignup() {
 
         document.getElementById("notification-container").removeChild(loadingNotification);
 
+        const responseData = await response.text();
+        console.log("Full signup response:", responseData);
+
         if (!response.ok) {
-            const errorData = await response.json();
-            showNotification(errorData.error || "Registration failed", "error");
+            let errorMessage = "Registration failed";
+            try {
+                const errorData = JSON.parse(responseData);
+                errorMessage = errorData.error || errorMessage;
+            } catch {
+                errorMessage = responseData || errorMessage;
+            }
+
+            showNotification(errorMessage, "error");
             return;
         }
 
-        const data = await response.json();
+        let data;
+        try {
+            data = JSON.parse(responseData);
+        } catch (parseError) {
+            console.error("Failed to parse response:", parseError);
+            showNotification("Invalid server response", "error");
+            return;
+        }
 
         localStorage.setItem("jwt_token", data.token);
 
@@ -313,7 +331,7 @@ async function handleSignup() {
         }, 2000);
     } catch (error) {
         console.error("Registration error:", error);
-        showNotification("An error occurred during signup. Please try again.", "error");
+        showNotification("Network error. Please try again.", "error");
     }
 }
 
@@ -338,22 +356,6 @@ async function handleLogin() {
 
     if (!isValid) return;
 
-    const loginAttempts = parseInt(sessionStorage.getItem("loginAttempts") || "0");
-    if (loginAttempts >= 5) {
-        const lastAttemptTime = parseInt(sessionStorage.getItem("lastAttemptTime") || "0");
-        const currentTime = new Date().getTime();
-
-        if (currentTime - lastAttemptTime < 15 * 60 * 1000) {
-            const minutesLeft = Math.ceil((15 * 60 * 1000 - (currentTime - lastAttemptTime)) / (60 * 1000));
-            showNotification(`Too many failed login attempts. Please try again after ${minutesLeft} minutes.`, "error");
-            return;
-        } else {
-            sessionStorage.setItem("loginAttempts", "0");
-        }
-    }
-
-    sessionStorage.setItem("lastAttemptTime", new Date().getTime().toString());
-
     try {
         const loadingNotification = showNotification("Signing in...", "info");
 
@@ -370,20 +372,32 @@ async function handleLogin() {
 
         document.getElementById("notification-container").removeChild(loadingNotification);
 
-        if (!response.ok) {
-            sessionStorage.setItem("loginAttempts", (loginAttempts + 1).toString());
+        const responseData = await response.text();
+        console.log("Full response:", responseData);
 
-            const errorData = await response.json();
-            showNotification(errorData.error || "Login failed", "error");
+        if (!response.ok) {
+            let errorMessage = "Login failed";
+            try {
+                const errorData = JSON.parse(responseData);
+                errorMessage = errorData.error || errorMessage;
+            } catch {
+                errorMessage = responseData || errorMessage;
+            }
+
+            showNotification(errorMessage, "error");
             return;
         }
 
-        const data = await response.json();
-
-        sessionStorage.setItem("loginAttempts", "0");
+        let data;
+        try {
+            data = JSON.parse(responseData);
+        } catch (parseError) {
+            console.error("Failed to parse response:", parseError);
+            showNotification("Invalid server response", "error");
+            return;
+        }
 
         localStorage.setItem("jwt_token", data.token);
-
         localStorage.setItem(
             "user_data",
             JSON.stringify({
@@ -396,20 +410,14 @@ async function handleLogin() {
 
         if (data.user.isAdmin && data.user.email === "admin@admin.com") {
             showNotification("Login successful! Redirecting to admin dashboard...", "success");
-
-            setTimeout(() => {
-                window.location.href = "admin.html";
-            }, 2000);
+            setTimeout(() => (window.location.href = "admin.html"), 2000);
         } else {
             showNotification("Login successful! Redirecting to dashboard...", "success");
-
-            setTimeout(() => {
-                window.location.href = "landing.html";
-            }, 2000);
+            setTimeout(() => (window.location.href = "landing.html"), 2000);
         }
     } catch (error) {
         console.error("Login error:", error);
-        showNotification("An error occurred during login. Please try again.", "error");
+        showNotification("Network error. Please try again.", "error");
     }
 }
 
