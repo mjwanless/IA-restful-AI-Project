@@ -1,60 +1,176 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lyrics Generator - Dashboard</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="auth_script.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lyrics Generator</title>
+  <!-- Bootstrap CSS -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    #lyricsOutput {
+      min-height: 150px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  </style>
 </head>
-<body class="bg-white">
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <div class="container">
-            <a class="navbar-brand" href="#">Lyrics Generator</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">Profile</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="logoutBtn" href="#">Logout</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-
-    <div class="container py-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6 text-center">
-                <h2 class="mb-3">Welcome to Lyrics Generator</h2>
-                <p class="mb-4">You are logged in. Ready to create some lyrics?</p>
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Get Started</h5>
-                        <p class="card-text">Click below to generate new lyrics or log out from your account.</p>
-                        <button class="btn btn-primary me-2">Create Lyrics</button>
-                        <button class="btn btn-danger" id="logoutBtnCard">Logout</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="#">Lyrics Generator</a>
     </div>
+  </nav>
 
-    <!-- Bootstrap JavaScript Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Additional script to make both logout buttons work
-        document.getElementById('logoutBtnCard').addEventListener('click', function() {
-            // Call the logout function from auth_script.js
-            if (typeof logout === 'function') {
-                logout();
-            }
-        });
-    </script>
+  <div class="container py-4">
+    <div class="row">
+      <div class="col-md-12">
+        <!-- Card: Form -->
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="mb-0">Generate Song Lyrics</h5>
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <label for="artistInput" class="form-label">Artist Style</label>
+              <input
+                type="text"
+                class="form-control"
+                id="artistInput"
+                value="Taylor Swift"
+              />
+            </div>
+            <div class="mb-3">
+              <label for="descInput" class="form-label">Description/Theme</label>
+              <input
+                type="text"
+                class="form-control"
+                id="descInput"
+                value="murdering a dinosaur"
+              />
+            </div>
+            <div class="d-flex gap-2">
+              <button
+                type="button"
+                class="btn btn-primary"
+                id="generateLyrics"
+              >
+                Generate Lyrics
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary"
+                id="clearBtn"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card: Output -->
+        <div class="card">
+          <div
+            class="card-header d-flex justify-content-between align-items-center"
+          >
+            <h5 class="mb-0">Generated Lyrics</h5>
+            <span id="statusBadge" class="badge bg-secondary">Ready</span>
+          </div>
+          <div class="card-body">
+            <pre id="lyricsOutput" class="border p-3 rounded bg-light"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JavaScript -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // Get DOM elements
+      const generateBtn = document.getElementById("generateLyrics");
+      const clearBtn = document.getElementById("clearBtn");
+      const artistInput = document.getElementById("artistInput");
+      const descInput = document.getElementById("descInput");
+      const lyricsOutput = document.getElementById("lyricsOutput");
+      const statusBadge = document.getElementById("statusBadge");
+
+      generateBtn.addEventListener("click", async function () {
+        try {
+          // Show "Processing" status
+          statusBadge.textContent = "Processing...";
+          statusBadge.className = "badge bg-warning";
+          lyricsOutput.textContent = "Generating lyrics, please wait...";
+          generateBtn.disabled = true;
+
+          // Collect user input
+          const artist = artistInput.value.trim();
+          const description = descInput.value.trim();
+
+          // EXACT order from your screenshot
+          const requestBody = {
+            artist: artist,
+            description: description,
+            max_length: 50,
+            temperature: 0.9,
+            top_p: 0.95,
+            top_k: 5,
+            complete_song: true
+          };
+
+          console.log("Sending request:", requestBody);
+
+          // Call your proxy endpoint (server.js)
+          const response = await fetch("http://localhost:3000/api/generate-lyrics", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(requestBody)
+          });
+
+          console.log("Response status:", response.status);
+
+          if (!response.ok) {
+            throw new Error(
+              `API returned ${response.status}: ${response.statusText}`
+            );
+          }
+
+          const data = await response.json();
+          console.log("Response data:", data);
+
+          if (data && data.lyrics) {
+            lyricsOutput.textContent = data.lyrics;
+            statusBadge.textContent = "Success";
+            statusBadge.className = "badge bg-success";
+          } else {
+            throw new Error("No lyrics field in response");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          lyricsOutput.textContent = `Error: ${error.message}`;
+          statusBadge.textContent = "Error";
+          statusBadge.className = "badge bg-danger";
+        } finally {
+          generateBtn.disabled = false;
+        }
+      });
+
+      clearBtn.addEventListener("click", function () {
+        artistInput.value = "";
+        descInput.value = "";
+        lyricsOutput.textContent = "";
+        statusBadge.textContent = "Ready";
+        statusBadge.className = "badge bg-secondary";
+      });
+    });
+  </script>
 </body>
 </html>
