@@ -18,9 +18,28 @@
   </style>
 </head>
 <body>
+  <!-- Navbar with a "Logout" button on the right -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container">
       <a class="navbar-brand" href="#">Lyrics Generator</a>
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#navbarNav"
+      >
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <!-- Fancy Logout button -->
+          <li class="nav-item">
+            <button class="btn btn-outline-light" id="logoutBtn">
+              Logout
+            </button>
+          </li>
+        </ul>
+      </div>
     </div>
   </nav>
 
@@ -91,16 +110,33 @@
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
   ></script>
 
+  <!-- Include auth_script.js if it contains the logout() function -->
+  <script src="auth_script.js"></script>
+
   <script>
     document.addEventListener("DOMContentLoaded", function () {
-      // Get DOM elements
+      // Grab elements
       const generateBtn = document.getElementById("generateLyrics");
       const clearBtn = document.getElementById("clearBtn");
       const artistInput = document.getElementById("artistInput");
       const descInput = document.getElementById("descInput");
       const lyricsOutput = document.getElementById("lyricsOutput");
       const statusBadge = document.getElementById("statusBadge");
+      const logoutBtn = document.getElementById("logoutBtn");
 
+      // Logout button click handler (calls logout() if defined in auth_script.js)
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          if (typeof logout === "function") {
+            logout();
+          } else {
+            console.warn("No logout function found!");
+          }
+        });
+      }
+
+      // Generate lyrics
       generateBtn.addEventListener("click", async function () {
         try {
           // Show "Processing" status
@@ -163,6 +199,7 @@
         }
       });
 
+      // Clear form and output
       clearBtn.addEventListener("click", function () {
         artistInput.value = "";
         descInput.value = "";
