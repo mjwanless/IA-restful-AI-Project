@@ -65,44 +65,83 @@ app.get("/api/test-db", async (req, res) => {
 });
 
 // Proxy Endpoint for generating lyrics using global fetch
+// app.post("/api/generate-lyrics", async (req, res) => {
+//   try {
+//     const {
+//       artist,
+//       description,
+//       max_length,
+//       temperature,
+//       top_p,
+//       top_k,
+//       complete_song,
+//     } = req.body;
+
+//     // Forward the request to your external LLM endpoint
+//     const response = await fetch(
+//       "http://146.190.124.66:8000/generate-pop-lyrics",
+//       {
+//         method: "POST",
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify({
+//           artist,
+//           description,
+//           max_length,
+//           temperature,
+//           top_p,
+//           top_k,
+//           complete_song,
+//         }),
+//       }
+//     );
+//     const data = await response.json();
+//     return res.json(data);
+//   } catch (error) {
+//     console.error("Error in proxy /api/generate-lyrics:", error);
+//     res
+//       .status(500)
+//       .json({ error: "Failed to generate lyrics", details: error.message });
+//   }
+// });
 app.post("/api/generate-lyrics", async (req, res) => {
   try {
-    const {
-      artist,
-      description,
-      max_length,
-      temperature,
-      top_p,
-      top_k,
-      complete_song,
-    } = req.body;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 50000); // 15s timeout
 
-    // Forward the request to your external LLM endpoint
-    const response = await fetch(
-      "http://146.190.124.66:8000/generate-pop-lyrics",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          artist,
-          description,
-          max_length,
-          temperature,
-          top_p,
-          top_k,
-          complete_song,
-        }),
-      }
-    );
+    // Assume requestBody is the object you want to send to the LLM endpoint
+    const requestBody = {
+      artist: req.body.artist,
+      description: req.body.description,
+      max_length: req.body.max_length,      // You can enforce a limit here if needed
+      temperature: req.body.temperature,
+      top_p: req.body.top_p,
+      top_k: req.body.top_k,
+      complete_song: req.body.complete_song,
+    };
+
+    const response = await fetch("http://146.190.124.66:8000/generate-pop-lyrics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+    // Continue with normal flow
     const data = await response.json();
-    return res.json(data);
+    res.json(data);
+
   } catch (error) {
-    console.error("Error in proxy /api/generate-lyrics:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to generate lyrics", details: error.message });
+    // If it was aborted:
+    if (error.name === "AbortError") {
+      return res.status(408).json({ error: "Request timed out" });
+    }
+    // Otherwise, handle the error normally
+    res.status(500).json({ error: "Failed to generate lyrics", details: error.message });
   }
 });
+
+
 
 // User Registration
 app.post("/api/auth/register", async (req, res) => {
