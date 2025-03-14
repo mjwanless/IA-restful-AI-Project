@@ -1,7 +1,52 @@
 const API_URL =
     window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
 
+// Add this at the very top of the file
 console.log("Auth script is running!");
+
+console.log("Current hostname:", window.location.hostname);
+console.log("Configured API URL:", API_URL);
+
+// Ensure the function is defined globally
+window.handleLogin = async function () {
+    console.log("handleLogin function called");
+
+    const emailInput = document.getElementById("loginEmail");
+    const passwordInput = document.getElementById("loginPassword");
+
+    const email = emailInput.value;
+    const password = passwordInput.value;
+
+    console.log("Login attempt:", { email, password });
+
+    try {
+        console.log("Sending request to:", `${API_URL}/auth/login`);
+
+        const response = await fetch(`${API_URL}/auth/login`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email, password }),
+        });
+
+        console.log("Response status:", response.status);
+
+        const responseText = await response.text();
+        console.log("Raw response body:", responseText);
+
+        if (!response.ok) {
+            console.error("Login failed with status:", response.status);
+            console.error("Error response:", responseText);
+            return;
+        }
+
+        const data = JSON.parse(responseText);
+        console.log("Parsed response:", data);
+    } catch (error) {
+        console.error("Complete login error:", error);
+    }
+};
 
 document.addEventListener("DOMContentLoaded", () => {
     console.log("DOM fully loaded");
@@ -10,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (loginBtn) {
         loginBtn.addEventListener("click", () => {
             console.log("Login button clicked!");
-            handleLogin();
+            window.handleLogin();
         });
     } else {
         console.error("Login button not found");
