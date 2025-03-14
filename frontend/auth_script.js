@@ -4,44 +4,81 @@ const API_URL =
 console.log("Current hostname:", window.location.hostname);
 console.log("Using API URL:", API_URL);
 
-// Ensure the function is defined globally
 window.handleLogin = async function () {
-    console.log("handleLogin function called");
-
     const emailInput = document.getElementById("loginEmail");
     const passwordInput = document.getElementById("loginPassword");
 
     const email = emailInput.value;
     const password = passwordInput.value;
 
-    console.log("Login attempt:", { email, password });
+    let isValid = true;
+
+    if (!email) {
+        showFormError(emailInput, "Email is required");
+        isValid = false;
+    }
+
+    if (!password) {
+        showFormError(passwordInput, "Password is required");
+        isValid = false;
+    }
+
+    if (!isValid) return;
 
     try {
-        console.log("Sending request to:", `${API_URL}/auth/login`);
+        const loadingNotification = showNotification("Signing in...", "info");
 
         const response = await fetch(`${API_URL}/auth/login`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({
+                email,
+                password,
+            }),
         });
 
-        console.log("Response status:", response.status);
+        document.getElementById("notification-container").removeChild(loadingNotification);
 
-        const responseText = await response.text();
-        console.log("Raw response body:", responseText);
+        const responseData = await response.text();
 
         if (!response.ok) {
-            console.error("Login failed with status:", response.status);
-            console.error("Error response:", responseText);
+            let errorMessage = "Login failed";
+            try {
+                const errorData = JSON.parse(responseData);
+                errorMessage = errorData.error || errorMessage;
+            } catch {
+                errorMessage = responseData || errorMessage;
+            }
+
+            showNotification(errorMessage, "error");
             return;
         }
 
-        const data = JSON.parse(responseText);
-        console.log("Parsed response:", data);
+        const data = JSON.parse(responseData);
+
+        localStorage.setItem("jwt_token", data.token);
+        localStorage.setItem(
+            "user_data",
+            JSON.stringify({
+                id: data.user.id,
+                email: data.user.email,
+                isAdmin: data.user.isAdmin,
+                apiCallsCount: data.user.apiCallsCount,
+            })
+        );
+
+        if (data.user.isAdmin && data.user.email === "admin@admin.com") {
+            showNotification("Login successful! Redirecting to admin dashboard...", "success");
+            setTimeout(() => (window.location.href = "admin.html"), 2000);
+        } else {
+            showNotification("Login successful! Redirecting to dashboard...", "success");
+            setTimeout(() => (window.location.href = "landing.html"), 2000);
+        }
     } catch (error) {
         console.error("Complete login error:", error);
+        showNotification(`Network error: ${error.message}`, "error");
     }
 };
 
@@ -392,111 +429,6 @@ async function handleSignup() {
         showNotification("Network error. Please try again.", "error");
     }
 }
-
-async function handleLogin() {
-    const emailInput = document.getElementById("loginEmail");
-    const passwordInput = document.getElementById("loginPassword");
-
-    const email = emailInput.value;
-    const password = passwordInput.value;
-
-    let isValid = true;
-
-    if (!email) {
-        showFormError(emailInput, "Email is required");
-        isValid = false;
-    }
-
-    if (!password) {
-        showFormError(passwordInput, "Password is required");
-        isValid = false;
-    }
-
-    if (!isValid) return;
-
-    try {
-        const loadingNotification = showNotification("Signing in...", "info");
-
-        const response = await fetch(`${API_URL}/auth/login`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                email,
-                password,
-            }),
-        });
-
-        document.getElementById("notification-container").removeChild(loadingNotification);
-
-        const responseData = await response.text();
-
-        if (!response.ok) {
-            let errorMessage = "Login failed";
-            try {
-                const errorData = JSON.parse(responseData);
-                errorMessage = errorData.error || errorMessage;
-            } catch {
-                errorMessage = responseData || errorMessage;
-            }
-
-            showNotification(errorMessage, "error");
-            return;
-        }
-
-        const data = JSON.parse(responseData);
-
-        localStorage.setItem("jwt_token", data.token);
-        localStorage.setItem(
-            "user_data",
-            JSON.stringify({
-                id: data.user.id,
-                email: data.user.email,
-                isAdmin: data.user.isAdmin,
-                apiCallsCount: data.user.apiCallsCount,
-            })
-        );
-
-        if (data.user.isAdmin && data.user.email === "admin@admin.com") {
-            showNotification("Login successful! Redirecting to admin dashboard...", "success");
-            setTimeout(() => (window.location.href = "admin.html"), 2000);
-        } else {
-            showNotification("Login successful! Redirecting to dashboard...", "success");
-            setTimeout(() => (window.location.href = "landing.html"), 2000);
-        }
-    } catch (error) {
-        console.error("Complete login error:", error);
-        showNotification(`Network error: ${error.message}`, "error");
-    }
-}
-
-function handleLogout() {
-    localStorage.removeItem("jwt_token");
-    localStorage.removeItem("user_data");
-
-    showNotification("You have been logged out successfully.", "success");
-
-    setTimeout(() => {
-        window.location.href = "login.html";
-    }, 2000);
-}
-
-function validateEmail(email) {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-}
-
-window.logout = handleLogout;
-
-const style = document.createElement("style");
-style.textContent = `
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-`;
-document.head.appendChild(style);
 
 function handleLogout() {
     localStorage.removeItem("jwt_token");

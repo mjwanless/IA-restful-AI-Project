@@ -40,8 +40,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 complete_song: true,
             };
 
-            console.log("Sending request:", requestBody);
-
             const response = await fetch(`${API_URL}/generate-lyrics`, {
                 method: "POST",
                 headers: {
@@ -50,8 +48,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 },
                 body: JSON.stringify(requestBody),
             });
-
-            console.log("Response status:", response.status);
 
             if (!response.ok) {
                 if (response.status === 401 || response.status === 403) {
@@ -64,7 +60,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             const data = await response.json();
-            console.log("Response data:", data);
 
             if (data && data.lyrics) {
                 lyricsOutput.textContent = data.lyrics;
@@ -82,7 +77,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 throw new Error("No lyrics field in response");
             }
         } catch (error) {
-            console.error("Error:", error);
             lyricsOutput.textContent = `Error: ${error.message}`;
             statusBadge.textContent = "Error";
             statusBadge.className = "badge bg-danger";
@@ -129,10 +123,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function showNotification(message, type = "info") {
-        if (window.showNotification) {
-            return window.showNotification(message, type);
-        }
-
         const container = document.getElementById("notification-container");
         if (!container) {
             const notificationContainer = document.createElement("div");
@@ -145,19 +135,25 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const notification = document.createElement("div");
-        notification.style.backgroundColor = type === "warning" ? "#fff3cd" : "#d1ecf1";
-        notification.style.color = type === "warning" ? "#856404" : "#0c5460";
-        notification.style.padding = "15px";
         notification.style.marginBottom = "10px";
+        notification.style.padding = "15px";
         notification.style.borderRadius = "5px";
         notification.style.boxShadow = "0 2px 5px rgba(0,0,0,0.2)";
-        notification.innerHTML = message;
+        notification.textContent = message;
 
-        (container || document.getElementById("notification-container")).appendChild(notification);
+        if (type === "warning") {
+            notification.style.backgroundColor = "#fff3cd";
+            notification.style.color = "#856404";
+        } else {
+            notification.style.backgroundColor = "#d1ecf1";
+            notification.style.color = "#0c5460";
+        }
+
+        container.appendChild(notification);
 
         setTimeout(() => {
             try {
-                (container || document.getElementById("notification-container")).removeChild(notification);
+                container.removeChild(notification);
             } catch (e) {}
         }, 5000);
 
