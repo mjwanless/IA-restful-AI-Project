@@ -159,10 +159,10 @@ function checkAuthState() {
                 window.location.href = "landing.html";
             }
         }
-        if (currentPage === "admin.html" && !isAdmin) {
-            showNotification("Access denied. Admin privileges required.", "error");
-            window.location.href = "landing.html";
-        }
+        // if (currentPage === "admin.html" && !isAdmin) {
+        //     showNotification("Access denied. Admin privileges required.", "error");
+        //     window.location.href = "landing.html";
+        // }
     } else {
         if (currentPage === "landing.html" || currentPage === "admin.html") {
             window.location.href = "login.html";
