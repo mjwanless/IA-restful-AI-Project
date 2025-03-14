@@ -446,7 +446,7 @@ function validateEmail(email) {
     return re.test(email);
 }
 
-window.logout = handleLogout;
+window.handleLogout = handleLogout;
 
 const style = document.createElement("style");
 style.textContent = `
