@@ -82,21 +82,9 @@ window.handleLogin = async function () {
     }
 };
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", function () {
     console.log("DOM fully loaded");
 
-    const loginBtn = document.getElementById("loginBtn");
-    if (loginBtn) {
-        loginBtn.addEventListener("click", () => {
-            console.log("Login button clicked!");
-            window.handleLogin();
-        });
-    } else {
-        console.error("Login button not found");
-    }
-});
-
-document.addEventListener("DOMContentLoaded", function () {
     const currentPage = window.location.pathname.split("/").pop();
 
     checkAuthState();
@@ -115,32 +103,41 @@ document.addEventListener("DOMContentLoaded", function () {
         document.body.appendChild(notificationContainer);
     }
 
+    const loginBtn = document.getElementById("loginBtn");
+    if (loginBtn) {
+        loginBtn.addEventListener("click", () => {
+            console.log("Login button clicked!");
+            window.handleLogin();
+        });
+    }
+
     if (currentPage === "signup.html") {
         const registerBtn = document.getElementById("registerBtn");
         if (registerBtn) {
             registerBtn.addEventListener("click", handleSignup);
         }
-    } else if (currentPage === "login.html") {
-        const loginBtn = document.getElementById("loginBtn");
-        if (loginBtn) {
-            loginBtn.addEventListener("click", handleLogin);
-        }
     } else if (currentPage === "landing.html" || currentPage === "") {
         const logoutBtn = document.getElementById("logoutBtn");
         if (logoutBtn) {
-            logoutBtn.addEventListener("click", handleLogout);
+            logoutBtn.addEventListener("click", () => {
+                window.handleLogout();
+            });
         }
 
         const logoutBtnCard = document.getElementById("logoutBtnCard");
         if (logoutBtnCard) {
-            logoutBtnCard.addEventListener("click", handleLogout);
+            logoutBtnCard.addEventListener("click", () => {
+                window.handleLogout();
+            });
         }
 
         fetchUserProfile();
     } else if (currentPage === "admin.html") {
         const logoutBtn = document.getElementById("logoutBtn");
         if (logoutBtn) {
-            logoutBtn.addEventListener("click", handleLogout);
+            logoutBtn.addEventListener("click", () => {
+                window.handleLogout();
+            });
         }
     }
 });
