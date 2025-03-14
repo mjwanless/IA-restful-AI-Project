@@ -14,7 +14,7 @@ const supabase = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_KEY || s
 const app = express();
 app.use(
     cors({
-        origin: "*",
+        origin: ["https://lyrics-generator-backend-883px.ondigitalocean.app"],
         methods: ["GET", "POST", "PUT", "DELETE"],
         allowedHeaders: ["Content-Type", "Authorization"],
     })

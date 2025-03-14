@@ -1,5 +1,4 @@
-const API_URL =
-    window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
+const API_URL = window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app";
 
 console.log("Current hostname:", window.location.hostname);
 console.log("Using API URL:", API_URL);
