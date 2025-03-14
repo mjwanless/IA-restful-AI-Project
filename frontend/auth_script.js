@@ -153,16 +153,12 @@ function checkAuthState() {
 
     if (isLoggedIn) {
         if (currentPage === "login.html" || currentPage === "signup.html" || currentPage === "index.html") {
-            if (isAdmin && userData.email === "admin@admin.com") {
+            if (isAdmin) {
                 window.location.href = "admin.html";
             } else {
                 window.location.href = "landing.html";
             }
         }
-        // if (currentPage === "admin.html" && !isAdmin) {
-        //     showNotification("Access denied. Admin privileges required.", "error");
-        //     window.location.href = "landing.html";
-        // }
     } else {
         if (currentPage === "landing.html" || currentPage === "admin.html") {
             window.location.href = "login.html";
