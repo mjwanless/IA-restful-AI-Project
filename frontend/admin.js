@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
     const ADMIN_API_URL =
-        window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app";
+        window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
 
     checkAdminStatus();
 
@@ -124,5 +124,49 @@ document.addEventListener("DOMContentLoaded", function () {
             console.error("Error resetting API count:", error);
             showNotification(`Failed to reset API count: ${error.message}`, "error");
         }
+    }
+
+    function showNotification(message, type = "info") {
+        const container = document.getElementById("notification-container");
+        if (!container) {
+            const notificationContainer = document.createElement("div");
+            notificationContainer.id = "notification-container";
+            notificationContainer.style.position = "fixed";
+            notificationContainer.style.top = "20px";
+            notificationContainer.style.right = "20px";
+            notificationContainer.style.zIndex = "1000";
+            document.body.appendChild(notificationContainer);
+        }
+
+        const notification = document.createElement("div");
+        notification.style.marginBottom = "10px";
+        notification.style.padding = "15px";
+        notification.style.borderRadius = "5px";
+        notification.style.boxShadow = "0 2px 5px rgba(0,0,0,0.2)";
+        notification.textContent = message;
+
+        if (type === "success") {
+            notification.style.backgroundColor = "#d4edda";
+            notification.style.color = "#155724";
+        } else if (type === "error") {
+            notification.style.backgroundColor = "#f8d7da";
+            notification.style.color = "#721c24";
+        } else if (type === "warning") {
+            notification.style.backgroundColor = "#fff3cd";
+            notification.style.color = "#856404";
+        } else {
+            notification.style.backgroundColor = "#d1ecf1";
+            notification.style.color = "#0c5460";
+        }
+
+        container.appendChild(notification);
+
+        setTimeout(() => {
+            try {
+                container.removeChild(notification);
+            } catch (e) {}
+        }, 5000);
+
+        return notification;
     }
 });

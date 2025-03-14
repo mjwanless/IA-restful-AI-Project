@@ -1,4 +1,5 @@
-const API_URL = window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app";
+const API_URL =
+    window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
 
 console.log("Current hostname:", window.location.hostname);
 console.log("Using API URL:", API_URL);
@@ -393,17 +394,11 @@ async function handleSignup() {
 }
 
 async function handleLogin() {
-    console.log("Login function started");
-    console.log("Current hostname:", window.location.hostname);
-    console.log("Full API URL:", API_URL);
-
     const emailInput = document.getElementById("loginEmail");
     const passwordInput = document.getElementById("loginPassword");
 
     const email = emailInput.value;
     const password = passwordInput.value;
-
-    console.log("Login attempt details:", { email, password });
 
     let isValid = true;
 
@@ -422,9 +417,6 @@ async function handleLogin() {
     try {
         const loadingNotification = showNotification("Signing in...", "info");
 
-        console.log("Sending request to:", `${API_URL}/auth/login`);
-        console.log("Request payload:", JSON.stringify({ email, password }));
-
         const response = await fetch(`${API_URL}/auth/login`, {
             method: "POST",
             headers: {
@@ -436,23 +428,16 @@ async function handleLogin() {
             }),
         });
 
-        console.log("Response received:");
-        console.log("Status:", response.status);
-        console.log("Headers:", Object.fromEntries(response.headers.entries()));
-
         document.getElementById("notification-container").removeChild(loadingNotification);
 
         const responseData = await response.text();
-        console.log("Raw response body:", responseData);
 
         if (!response.ok) {
             let errorMessage = "Login failed";
             try {
                 const errorData = JSON.parse(responseData);
                 errorMessage = errorData.error || errorMessage;
-                console.log("Parsed error data:", errorData);
-            } catch (parseError) {
-                console.error("Error parsing error response:", parseError);
+            } catch {
                 errorMessage = responseData || errorMessage;
             }
 
@@ -460,15 +445,7 @@ async function handleLogin() {
             return;
         }
 
-        let data;
-        try {
-            data = JSON.parse(responseData);
-            console.log("Parsed successful response:", data);
-        } catch (parseError) {
-            console.error("Failed to parse response:", parseError);
-            showNotification("Invalid server response", "error");
-            return;
-        }
+        const data = JSON.parse(responseData);
 
         localStorage.setItem("jwt_token", data.token);
         localStorage.setItem(
@@ -493,6 +470,33 @@ async function handleLogin() {
         showNotification(`Network error: ${error.message}`, "error");
     }
 }
+
+function handleLogout() {
+    localStorage.removeItem("jwt_token");
+    localStorage.removeItem("user_data");
+
+    showNotification("You have been logged out successfully.", "success");
+
+    setTimeout(() => {
+        window.location.href = "login.html";
+    }, 2000);
+}
+
+function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
+
+window.logout = handleLogout;
+
+const style = document.createElement("style");
+style.textContent = `
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+`;
+document.head.appendChild(style);
 
 function handleLogout() {
     localStorage.removeItem("jwt_token");

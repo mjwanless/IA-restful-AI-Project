@@ -1,4 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
+    const API_URL =
+        window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
+
     const generateBtn = document.getElementById("generateLyrics");
     const clearBtn = document.getElementById("clearBtn");
     const artistInput = document.getElementById("artistInput");
@@ -39,7 +42,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             console.log("Sending request:", requestBody);
 
-            const response = await fetch("https://lyrics-generator-backend-883px.ondigitalocean.app", {
+            const response = await fetch(`${API_URL}/generate-lyrics`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -103,7 +106,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const token = localStorage.getItem("jwt_token");
         if (!token) return;
 
-        fetch("https://lyrics-generator-backend-883px.ondigitalocean.app", {
+        fetch(`${API_URL}/user/profile`, {
             method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,
