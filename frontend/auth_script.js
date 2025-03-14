@@ -1,11 +1,8 @@
 const API_URL =
     window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
 
-// Add this at the very top of the file
-console.log("Auth script is running!");
-
 console.log("Current hostname:", window.location.hostname);
-console.log("Configured API URL:", API_URL);
+console.log("Using API URL:", API_URL);
 
 // Ensure the function is defined globally
 window.handleLogin = async function () {
