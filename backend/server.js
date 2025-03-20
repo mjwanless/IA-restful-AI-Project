@@ -131,24 +131,78 @@ app.post("/api/generate-lyrics", authenticateToken, async (req, res) => {
     }
 });
 
+// app.post("/api/auth/register", async (req, res) => {
+//     try {
+//         const { email, password } = req.body;
+
+//         if (!email || !password) {
+//             return res.status(400).json({ error: "Email and password are required" });
+//         }
+
+//         const { data: existingUser, error: checkError } = await supabase.from("users").select("*").eq("email", email).maybeSingle();
+
+//         if (checkError) {
+//             throw checkError;
+//         }
+
+//         if (existingUser) {
+//             return res.status(409).json({ error: "User with this email already exists" });
+//         }
+
+//         const saltRounds = 10;
+//         const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+//         const { data: newUser, error: insertError } = await supabase
+//             .from("users")
+//             .insert([
+//                 {
+//                     email,
+//                     password: hashedPassword,
+//                     is_admin: false,
+//                     api_calls_count: 0,
+//                 },
+//             ])
+//             .select();
+
+//         if (insertError) {
+//             throw insertError;
+//         }
+
+//         const token = jwt.sign(
+//             {
+//                 userId: newUser[0].id,
+//                 email: newUser[0].email,
+//                 isAdmin: newUser[0].is_admin,
+//             },
+//             process.env.JWT_SECRET,
+//             { expiresIn: "24h" }
+//         );
+
+//         res.status(201).json({
+//             message: "User registered successfully",
+//             token,
+//             user: {
+//                 id: newUser[0].id,
+//                 email: newUser[0].email,
+//                 isAdmin: newUser[0].is_admin,
+//             },
+//         });
+//     } catch (error) {
+//         console.error("Registration error:", error);
+//         res.status(500).json({ error: "Failed to register user", details: error.message });
+//     }
+// });
+
 app.post("/api/auth/register", async (req, res) => {
     try {
-        const { email, password } = req.body;
+        // Extract first_name along with email and password
+        const { first_name, email, password } = req.body;
 
-        if (!email || !password) {
-            return res.status(400).json({ error: "Email and password are required" });
+        if (!first_name || !email || !password) {
+            return res.status(400).json({ error: "First name, email, and password are required" });
         }
 
-        const { data: existingUser, error: checkError } = await supabase.from("users").select("*").eq("email", email).maybeSingle();
-
-        if (checkError) {
-            throw checkError;
-        }
-
-        if (existingUser) {
-            return res.status(409).json({ error: "User with this email already exists" });
-        }
-
+        // Check if user exists, hash password, etc.
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
@@ -156,6 +210,7 @@ app.post("/api/auth/register", async (req, res) => {
             .from("users")
             .insert([
                 {
+                    first_name, // store first name in database
                     email,
                     password: hashedPassword,
                     is_admin: false,
@@ -172,6 +227,7 @@ app.post("/api/auth/register", async (req, res) => {
             {
                 userId: newUser[0].id,
                 email: newUser[0].email,
+                first_name: newUser[0].first_name, // include first name in token
                 isAdmin: newUser[0].is_admin,
             },
             process.env.JWT_SECRET,
@@ -184,6 +240,7 @@ app.post("/api/auth/register", async (req, res) => {
             user: {
                 id: newUser[0].id,
                 email: newUser[0].email,
+                firstName: newUser[0].first_name, // return first name
                 isAdmin: newUser[0].is_admin,
             },
         });
@@ -192,6 +249,58 @@ app.post("/api/auth/register", async (req, res) => {
         res.status(500).json({ error: "Failed to register user", details: error.message });
     }
 });
+
+// app.post("/api/auth/login", async (req, res) => {
+//     try {
+//         const { email, password } = req.body;
+
+//         if (!email || !password) {
+//             return res.status(400).json({ error: "Email and password are required" });
+//         }
+
+//         const { data: user, error: fetchError } = await supabase.from("users").select("*").eq("email", email).single();
+
+//         if (fetchError) {
+//             if (fetchError.code === "PGRST116") {
+//                 return res.status(401).json({ error: "Invalid email or password" });
+//             }
+//             throw fetchError;
+//         }
+
+//         if (!user) {
+//             return res.status(401).json({ error: "Invalid email or password" });
+//         }
+
+//         const passwordMatch = await bcrypt.compare(password, user.password);
+//         if (!passwordMatch) {
+//             return res.status(401).json({ error: "Invalid email or password" });
+//         }
+
+//         const token = jwt.sign(
+//             {
+//                 userId: user.id,
+//                 email: user.email,
+//                 isAdmin: user.is_admin,
+//             },
+//             process.env.JWT_SECRET,
+//             { expiresIn: "24h" }
+//         );
+
+//         res.json({
+//             message: "Login successful",
+//             token,
+//             user: {
+//                 id: user.id,
+//                 email: user.email,
+//                 isAdmin: user.is_admin,
+//                 apiCallsCount: user.api_calls_count,
+//             },
+//         });
+//     } catch (error) {
+//         console.error("Login error:", error);
+//         res.status(500).json({ error: "Failed to login", details: error.message });
+//     }
+// });
 
 app.post("/api/auth/login", async (req, res) => {
     try {
@@ -223,6 +332,7 @@ app.post("/api/auth/login", async (req, res) => {
             {
                 userId: user.id,
                 email: user.email,
+                first_name: user.first_name, // include first name in token
                 isAdmin: user.is_admin,
             },
             process.env.JWT_SECRET,
@@ -235,6 +345,7 @@ app.post("/api/auth/login", async (req, res) => {
             user: {
                 id: user.id,
                 email: user.email,
+                firstName: user.first_name, // return first name
                 isAdmin: user.is_admin,
                 apiCallsCount: user.api_calls_count,
             },
@@ -249,7 +360,7 @@ app.get("/api/user/profile", authenticateToken, async (req, res) => {
     try {
         const { data, error } = await supabase
             .from("users")
-            .select("id, email, is_admin, api_calls_count, created_at")
+            .select("id, email, first_name, is_admin, api_calls_count, created_at")
             .eq("id", req.user.userId)
             .single();
 
@@ -272,6 +383,7 @@ app.get("/api/user/profile", authenticateToken, async (req, res) => {
         res.json({
             id: data.id,
             email: data.email,
+            firstName: data.first_name,
             isAdmin: data.is_admin,
             apiCallsCount: data.api_calls_count,
             createdAt: data.created_at,

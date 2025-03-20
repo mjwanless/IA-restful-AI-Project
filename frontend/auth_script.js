@@ -205,6 +205,7 @@ async function fetchUserProfile() {
             JSON.stringify({
                 id: userData.id,
                 email: userData.email,
+                firstName: userData.firstName, 
                 isAdmin: userData.isAdmin,
                 apiCallsCount: userData.apiCallsCount,
             })
@@ -212,7 +213,8 @@ async function fetchUserProfile() {
 
         const userEmailElement = document.getElementById("userEmail");
         if (userEmailElement) {
-            userEmailElement.textContent = userData.email;
+            // userEmailElement.textContent = userData.email;
+            userEmailElement.textContent = userData.firstName;
         }
 
         const apiCallsElement = document.getElementById("apiCallsCount");
@@ -333,7 +335,111 @@ function showFormError(inputElement, message) {
     );
 }
 
+// async function handleSignup() {
+//     const emailInput = document.getElementById("signupEmail");
+//     const passwordInput = document.getElementById("signupPassword");
+//     const confirmPasswordInput = document.getElementById("confirmPassword");
+//     const termsCheckInput = document.getElementById("termsCheck");
+
+//     const email = emailInput.value;
+//     const password = passwordInput.value;
+//     const confirmPassword = confirmPasswordInput?.value;
+//     const termsCheck = termsCheckInput?.checked;
+
+//     let isValid = true;
+
+//     if (!email) {
+//         showFormError(emailInput, "Email is required");
+//         isValid = false;
+//     } else if (!validateEmail(email)) {
+//         showFormError(emailInput, "Please enter a valid email address");
+//         isValid = false;
+//     }
+
+//     if (!password) {
+//         showFormError(passwordInput, "Password is required");
+//         isValid = false;
+//     }
+
+//     if (confirmPasswordInput && password !== confirmPassword) {
+//         showFormError(confirmPasswordInput, "Passwords do not match");
+//         isValid = false;
+//     }
+
+//     if (termsCheckInput !== undefined && !termsCheck) {
+//         showFormError(termsCheckInput, "You must agree to the Terms & Conditions");
+//         isValid = false;
+//     }
+
+//     if (!isValid) return;
+
+//     try {
+//         const loadingNotification = showNotification("Creating your account...", "info");
+
+//         const response = await fetch(`${API_URL}/auth/register`, {
+//             method: "POST",
+//             headers: {
+//                 "Content-Type": "application/json",
+//             },
+//             body: JSON.stringify({
+//                 email,
+//                 password,
+//             }),
+//         });
+
+//         document.getElementById("notification-container").removeChild(loadingNotification);
+
+//         const responseData = await response.text();
+//         console.log("Full signup response:", responseData);
+
+//         if (!response.ok) {
+//             let errorMessage = "Registration failed";
+//             try {
+//                 const errorData = JSON.parse(responseData);
+//                 errorMessage = errorData.error || errorMessage;
+//             } catch {
+//                 errorMessage = responseData || errorMessage;
+//             }
+
+//             showNotification(errorMessage, "error");
+//             return;
+//         }
+
+//         let data;
+//         try {
+//             data = JSON.parse(responseData);
+//         } catch (parseError) {
+//             console.error("Failed to parse response:", parseError);
+//             showNotification("Invalid server response", "error");
+//             return;
+//         }
+
+//         localStorage.setItem("jwt_token", data.token);
+
+//         localStorage.setItem(
+//             "user_data",
+//             JSON.stringify({
+//                 id: data.user.id,
+//                 email: data.user.email,
+//                 isAdmin: data.user.isAdmin,
+//             })
+//         );
+
+//         showNotification("Registration successful! Redirecting to dashboard...", "success");
+
+//         setTimeout(() => {
+//             window.location.href = "landing.html";
+//         }, 2000);
+//     } catch (error) {
+//         console.error("Registration error:", error);
+//         showNotification("Network error. Please try again.", "error");
+//     }
+// }
+
 async function handleSignup() {
+    const firstNameInput = document.getElementById("firstName");
+    const firstName = firstNameInput.value.trim();
+
     const emailInput = document.getElementById("signupEmail");
     const passwordInput = document.getElementById("signupPassword");
     const confirmPasswordInput = document.getElementById("confirmPassword");
@@ -346,6 +452,10 @@ async function handleSignup() {
 
     let isValid = true;
 
+    if (!firstName) {
+        showFormError(firstNameInput, "First name is required");
+        isValid = false;
+    }
     if (!email) {
         showFormError(emailInput, "Email is required");
         isValid = false;
@@ -353,17 +463,14 @@ async function handleSignup() {
         showFormError(emailInput, "Please enter a valid email address");
         isValid = false;
     }
-
     if (!password) {
         showFormError(passwordInput, "Password is required");
         isValid = false;
     }
-
     if (confirmPasswordInput && password !== confirmPassword) {
         showFormError(confirmPasswordInput, "Passwords do not match");
         isValid = false;
     }
-
     if (termsCheckInput !== undefined && !termsCheck) {
         showFormError(termsCheckInput, "You must agree to the Terms & Conditions");
         isValid = false;
@@ -371,8 +478,9 @@ async function handleSignup() {
 
     if (!isValid) return;
 
+    let loadingNotification;
     try {
-        const loadingNotification = showNotification("Creating your account...", "info");
+        loadingNotification = showNotification("Creating your account...", "info");
 
         const response = await fetch(`${API_URL}/auth/register`, {
             method: "POST",
@@ -380,12 +488,16 @@ async function handleSignup() {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
+                first_name: firstName, // include first name
                 email,
                 password,
             }),
         });
 
-        document.getElementById("notification-container").removeChild(loadingNotification);
+        const notificationContainer = document.getElementById("notification-container");
+        if (notificationContainer && loadingNotification) {
+            notificationContainer.removeChild(loadingNotification);
+        }
 
         const responseData = await response.text();
         console.log("Full signup response:", responseData);
@@ -413,26 +525,32 @@ async function handleSignup() {
         }
 
         localStorage.setItem("jwt_token", data.token);
-
         localStorage.setItem(
             "user_data",
             JSON.stringify({
                 id: data.user.id,
                 email: data.user.email,
+                firstName: data.user.firstName,
                 isAdmin: data.user.isAdmin,
             })
         );
 
         showNotification("Registration successful! Redirecting to dashboard...", "success");
-
         setTimeout(() => {
             window.location.href = "landing.html";
         }, 2000);
     } catch (error) {
         console.error("Registration error:", error);
+        if (loadingNotification) {
+            const notificationContainer = document.getElementById("notification-container");
+            if (notificationContainer.contains(loadingNotification)) {
+                notificationContainer.removeChild(loadingNotification);
+            }
+        }
         showNotification("Network error. Please try again.", "error");
     }
 }
+
 
 function handleLogout() {
     localStorage.removeItem("jwt_token");
