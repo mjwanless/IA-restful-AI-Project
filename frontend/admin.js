@@ -63,13 +63,13 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
         usersTableBody.innerHTML = "";
-        users.sort((a, b) => b.api_calls_count - a.api_calls_count);
+        users.sort((a, b) => b.apiCallsCount - a.apiCallsCount);
         users.forEach((user) => {
             const row = document.createElement("tr");
             if (user.is_admin) {
                 row.classList.add("table-primary");
             }
-            if (user.api_calls_count >= 20) {
+            if (user.apiCallsCount >= 20) {
                 row.classList.add("table-warning");
             }
             const createdDate = new Date(user.created_at).toLocaleString();
@@ -77,7 +77,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 <td>
                     ${user.email} ${user.is_admin ? ' <span class="badge bg-info">Admin</span>' : ""}
                 </td>
-                <td>${user.api_calls_count}</td>
+                <td>${user.apiCallsCount}</td>
                 <td>${createdDate}</td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">

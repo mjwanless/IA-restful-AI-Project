@@ -75,19 +75,65 @@ app.get("/api/test-db", async (req, res) => {
     }
 });
 
+// app.post("/api/generate-lyrics", authenticateToken, async (req, res) => {
+//     try {
+//         const { data: userData, error: userError } = await supabase.from("users").select("api_calls_count").eq("id", req.user.userId).single();
+
+//         if (userError) {
+//             throw userError;
+//         }
+
+//         const hasReachedLimit = userData.api_calls_count >= 20;
+
+//         const controller = new AbortController();
+//         const timeout = setTimeout(() => controller.abort(), 50000);
+
+//         const requestBody = {
+//             artist: req.body.artist,
+//             description: req.body.description,
+//             max_length: req.body.max_length,
+//             temperature: req.body.temperature,
+//             top_p: req.body.top_p,
+//             top_k: req.body.top_k,
+//             complete_song: req.body.complete_song,
+//         };
+
+//         const response = await fetch("http://146.190.124.66:8000/generate-pop-lyrics", {
+//             method: "POST",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify(requestBody),
+//             signal: controller.signal,
+//         });
+
+//         clearTimeout(timeout);
+//         const data = await response.json();
+
+//         const { error: updateError } = await supabase
+//             .from("users")
+//             .update({ api_calls_count: userData.api_calls_count + 1 })
+//             .eq("id", req.user.userId);
+
+//         if (updateError) {
+//             console.error("Error updating API call count:", updateError);
+//         }
+
+//         res.json({
+//             ...data,
+//             apiCallsCount: userData.api_calls_count + 1,
+//             limitReached: hasReachedLimit,
+//             limitMessage: hasReachedLimit ? "You have reached your free tier limit of 20 API calls." : null,
+//         });
+//     } catch (error) {
+//         if (error.name === "AbortError") {
+//             return res.status(408).json({ error: "Request timed out" });
+//         }
+//         res.status(500).json({ error: "Failed to generate lyrics", details: error.message });
+//     }
+// });
+
 app.post("/api/generate-lyrics", authenticateToken, async (req, res) => {
     try {
-        const { data: userData, error: userError } = await supabase.from("users").select("api_calls_count").eq("id", req.user.userId).single();
-
-        if (userError) {
-            throw userError;
-        }
-
-        const hasReachedLimit = userData.api_calls_count >= 20;
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 50000);
-
+        // 1. Call external lyrics API
         const requestBody = {
             artist: req.body.artist,
             description: req.body.description,
@@ -98,28 +144,65 @@ app.post("/api/generate-lyrics", authenticateToken, async (req, res) => {
             complete_song: req.body.complete_song,
         };
 
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 50000);
+
         const response = await fetch("http://146.190.124.66:8000/generate-pop-lyrics", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(requestBody),
             signal: controller.signal,
         });
-
         clearTimeout(timeout);
+
         const data = await response.json();
 
-        const { error: updateError } = await supabase
-            .from("users")
-            .update({ api_calls_count: userData.api_calls_count + 1 })
-            .eq("id", req.user.userId);
+        // 2. Check if the user has a row in api_usage
+        let { data: usageRow, error: usageSelectError } = await supabase
+            .from("api_usage")
+            .select("*")
+            .eq("user_id", req.user.userId)
+            .maybeSingle();
 
-        if (updateError) {
-            console.error("Error updating API call count:", updateError);
+        if (usageSelectError) {
+            console.error("Error fetching usage row:", usageSelectError);
         }
 
+        // 3. If row doesn't exist, insert one with api_calls_count = 1
+        if (!usageRow) {
+            const { data: insertedUsage, error: usageInsertError } = await supabase
+                .from("api_usage")
+                .insert([{ user_id: req.user.userId, api_calls_count: 1 }])
+                .select()
+                .single();
+
+            if (usageInsertError) {
+                console.error("Error inserting new usage row:", usageInsertError);
+            }
+            usageRow = insertedUsage;
+        } else {
+            // 4. If row exists, increment api_calls_count
+            const newCount = usageRow.api_calls_count + 1;
+            const { data: updatedUsage, error: usageUpdateError } = await supabase
+                .from("api_usage")
+                .update({ api_calls_count: newCount })
+                .eq("id", usageRow.id) // match by primary key or user_id
+                .select()
+                .single();
+
+            if (usageUpdateError) {
+                console.error("Error updating usage row:", usageUpdateError);
+            }
+            usageRow = updatedUsage;
+        }
+
+        // 5. usageRow now has the updated api_calls_count
+        const hasReachedLimit = usageRow.api_calls_count >= 20;
+
+        // 6. Return the updated usage count and limit status
         res.json({
-            ...data,
-            apiCallsCount: userData.api_calls_count + 1,
+            ...data, // lyrics from external API
+            apiCallsCount: usageRow.api_calls_count,
             limitReached: hasReachedLimit,
             limitMessage: hasReachedLimit ? "You have reached your free tier limit of 20 API calls." : null,
         });
@@ -127,9 +210,11 @@ app.post("/api/generate-lyrics", authenticateToken, async (req, res) => {
         if (error.name === "AbortError") {
             return res.status(408).json({ error: "Request timed out" });
         }
+        console.error("Error generating lyrics:", error);
         res.status(500).json({ error: "Failed to generate lyrics", details: error.message });
     }
 });
+
 
 // app.post("/api/auth/register", async (req, res) => {
 //     try {
@@ -356,44 +441,89 @@ app.post("/api/auth/login", async (req, res) => {
     }
 });
 
+// app.get("/api/user/profile", authenticateToken, async (req, res) => {
+//     try {
+//         const { data, error } = await supabase
+//             .from("users")
+//             .select("id, email, first_name, is_admin, api_calls_count, created_at")
+//             .eq("id", req.user.userId)
+//             .single();
+
+//         if (error) {
+//             console.error("Detailed Supabase error:", error);
+//             return res.status(500).json({
+//                 error: "Database query error",
+//                 details: error.message,
+//                 code: error.code,
+//             });
+//         }
+
+//         if (!data) {
+//             return res.status(404).json({
+//                 error: "User not found",
+//                 userId: req.user.userId,
+//             });
+//         }
+
+//         res.json({
+//             id: data.id,
+//             email: data.email,
+//             firstName: data.first_name,
+//             isAdmin: data.is_admin,
+//             apiCallsCount: data.api_calls_count,
+//             createdAt: data.created_at,
+//         });
+//     } catch (error) {
+//         console.error("Catch-all profile error:", error);
+//         res.status(500).json({
+//             error: "Unexpected error",
+//             details: error.message,
+//         });
+//     }
+// });
+
 app.get("/api/user/profile", authenticateToken, async (req, res) => {
     try {
-        const { data, error } = await supabase
+        // 1. Fetch basic user info (ignoring api_calls_count in the users table)
+        const { data: userData, error: userError } = await supabase
             .from("users")
-            .select("id, email, first_name, is_admin, api_calls_count, created_at")
+            .select("id, email, first_name, is_admin, created_at")
             .eq("id", req.user.userId)
             .single();
 
-        if (error) {
-            console.error("Detailed Supabase error:", error);
-            return res.status(500).json({
-                error: "Database query error",
-                details: error.message,
-                code: error.code,
-            });
+        if (userError) {
+            console.error("Error fetching user:", userError);
+            return res.status(500).json({ error: "Database query error", details: userError.message });
+        }
+        if (!userData) {
+            return res.status(404).json({ error: "User not found" });
         }
 
-        if (!data) {
-            return res.status(404).json({
-                error: "User not found",
-                userId: req.user.userId,
-            });
+        // 2. Fetch usage row from api_usage
+        const { data: usageRow, error: usageSelectError } = await supabase
+            .from("api_usage")
+            .select("api_calls_count")
+            .eq("user_id", req.user.userId)
+            .maybeSingle();
+
+        if (usageSelectError) {
+            console.error("Error fetching usage row:", usageSelectError);
         }
+
+        // 3. If no usage row, usage is 0
+        const usageCount = usageRow ? usageRow.api_calls_count : 0;
 
         res.json({
-            id: data.id,
-            email: data.email,
-            firstName: data.first_name,
-            isAdmin: data.is_admin,
-            apiCallsCount: data.api_calls_count,
-            createdAt: data.created_at,
+            id: userData.id,
+            email: userData.email,
+            firstName: userData.first_name,
+            isAdmin: userData.is_admin,
+            apiCallsCount: usageCount,
+            createdAt: userData.created_at,
         });
     } catch (error) {
-        console.error("Catch-all profile error:", error);
-        res.status(500).json({
-            error: "Unexpected error",
-            details: error.message,
-        });
+        console.error("Error in user profile:", error);
+        res.status(500).json({ error: "Unexpected error", details: error.message });
     }
 });
 
@@ -407,57 +537,133 @@ const checkAdmin = (req, res, next) => {
     next();
 };
 
+// app.get("/api/admin/users", authenticateToken, checkAdmin, async (req, res) => {
+//     try {
+//         const { data, error } = await supabase
+//             .from("users")
+//             .select("id, email, api_calls_count, is_admin, created_at")
+//             .order("created_at", { ascending: false });
+
+//         if (error) {
+//             throw error;
+//         }
+
+//         res.json(data);
+//     } catch (error) {
+//         console.error("Error fetching users:", error);
+//         res.status(500).json({
+//             error: "Failed to fetch users",
+//             details: error.message,
+//         });
+//     }
+// });
+
 app.get("/api/admin/users", authenticateToken, checkAdmin, async (req, res) => {
     try {
-        const { data, error } = await supabase
+        const { data: users, error } = await supabase
             .from("users")
-            .select("id, email, api_calls_count, is_admin, created_at")
-            .order("created_at", { ascending: false });
+            .select("id, email, first_name, is_admin, created_at");
+        if (error) throw error;
 
-        if (error) {
-            throw error;
-        }
+        // For each user, fetch their usage row
+        const usersWithUsage = await Promise.all(
+            users.map(async (user) => {
+                const { data: usageRow, error: usageSelectError } = await supabase
+                    .from("api_usage")
+                    .select("api_calls_count")
+                    .eq("user_id", user.id)
+                    .maybeSingle();
 
-        res.json(data);
+                let usageCount = 0;
+                if (!usageSelectError && usageRow) {
+                    usageCount = usageRow.api_calls_count;
+                }
+
+                return {
+                    ...user,
+                    apiCallsCount: usageCount,
+                };
+            })
+        );
+
+        res.json(usersWithUsage);
     } catch (error) {
-        console.error("Error fetching users:", error);
-        res.status(500).json({
-            error: "Failed to fetch users",
-            details: error.message,
-        });
+        console.error("Error fetching admin users:", error);
+        res.status(500).json({ error: "Failed to fetch users", details: error.message });
     }
 });
+
+// app.post("/api/admin/reset-api-count/:userId", authenticateToken, checkAdmin, async (req, res) => {
+//     try {
+//         const { userId } = req.params;
+
+//         if (!userId) {
+//             return res.status(400).json({ error: "User ID is required" });
+//         }
+
+//         const { data: user, error: userError } = await supabase.from("users").select("id").eq("id", userId).single();
+
+//         if (userError || !user) {
+//             return res.status(404).json({ error: "User not found" });
+//         }
+
+//         const { error: updateError } = await supabase.from("users").update({ api_calls_count: 0 }).eq("id", userId);
+
+//         if (updateError) {
+//             throw updateError;
+//         }
+
+//         res.json({
+//             success: true,
+//             message: "API call count reset successfully",
+//         });
+//     } catch (error) {
+//         console.error("Error resetting API count:", error);
+//         res.status(500).json({
+//             error: "Failed to reset API count",
+//             details: error.message,
+//         });
+//     }
+// });
 
 app.post("/api/admin/reset-api-count/:userId", authenticateToken, checkAdmin, async (req, res) => {
     try {
         const { userId } = req.params;
 
-        if (!userId) {
-            return res.status(400).json({ error: "User ID is required" });
+        // 1. Check if there's a row in api_usage
+        let { data: usageRow, error: usageSelectError } = await supabase
+            .from("api_usage")
+            .select("*")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+        if (usageSelectError) {
+            console.error("Error fetching usage row:", usageSelectError);
         }
 
-        const { data: user, error: userError } = await supabase.from("users").select("id").eq("id", userId).single();
-
-        if (userError || !user) {
-            return res.status(404).json({ error: "User not found" });
+        if (!usageRow) {
+            // If no row, create it with 0
+            const { error: usageInsertError } = await supabase
+                .from("api_usage")
+                .insert([{ user_id: userId, api_calls_count: 0 }]);
+            if (usageInsertError) {
+                throw usageInsertError;
+            }
+        } else {
+            // If row exists, set api_calls_count to 0
+            const { error: usageUpdateError } = await supabase
+                .from("api_usage")
+                .update({ api_calls_count: 0 })
+                .eq("id", usageRow.id);
+            if (usageUpdateError) {
+                throw usageUpdateError;
+            }
         }
 
-        const { error: updateError } = await supabase.from("users").update({ api_calls_count: 0 }).eq("id", userId);
-
-        if (updateError) {
-            throw updateError;
-        }
-
-        res.json({
-            success: true,
-            message: "API call count reset successfully",
-        });
+        res.json({ success: true, message: "API call count reset successfully" });
     } catch (error) {
         console.error("Error resetting API count:", error);
-        res.status(500).json({
-            error: "Failed to reset API count",
-            details: error.message,
-        });
+        res.status(500).json({ error: "Failed to reset API count", details: error.message });
     }
 });
 
