@@ -1,10 +1,8 @@
 document.addEventListener("DOMContentLoaded", function () {
     // const ADMIN_API_URL =
     //     window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
-
     const ADMIN_API_URL = API_URL;  // Use your API_URL from earlier
     console.log("Using admin API URL:", ADMIN_API_URL);
-
 
     checkAdminStatus();
 
@@ -83,12 +81,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 <td>${createdDate}</td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">
-                        <button
-                            class="btn btn-outline-secondary reset-api-btn"
-                            data-user-id="${user.id}"
-                            data-user-email="${user.email}"
-                        >
+                        <button class="btn btn-outline-secondary reset-api-btn me-2 rounded-pill" data-user-id="${user.id}" data-user-email="${user.email}">
                             Reset API Count
+                        </button>
+                        <button class="btn btn-outline-danger delete-user-btn rounded-pill" data-user-id="${user.id}" data-user-email="${user.email}">
+                            Delete
                         </button>
                     </div>
                 </td>
@@ -100,6 +97,15 @@ document.addEventListener("DOMContentLoaded", function () {
                 selectedUserId = this.dataset.userId;
                 resetUserEmail.textContent = this.dataset.userEmail;
                 resetApiCountModal.show();
+            });
+        });
+        document.querySelectorAll(".delete-user-btn").forEach((button) => {
+            button.addEventListener("click", function () {
+                const userId = this.dataset.userId;
+                const userEmail = this.dataset.userEmail;
+                if (confirm(`Are you sure you want to delete user "${userEmail}"? This action cannot be undone.`)) {
+                    deleteUser(userId);
+                }
             });
         });
     }
@@ -130,16 +136,40 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
+    async function deleteUser(userId) {
+        try {
+            const token = localStorage.getItem("jwt_token");
+            if (!token) {
+                throw new Error("No authentication token found");
+            }
+            const response = await fetch(`${ADMIN_API_URL}/admin/users/${userId}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+            });
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+            }
+            showNotification("User deleted successfully", "success");
+            fetchAllUsers();
+        } catch (error) {
+            console.error("Error deleting user:", error);
+            showNotification(`Failed to delete user: ${error.message}`, "error");
+        }
+    }
+
     function showNotification(message, type = "info") {
-        const container = document.getElementById("notification-container");
+        let container = document.getElementById("notification-container");
         if (!container) {
-            const notificationContainer = document.createElement("div");
-            notificationContainer.id = "notification-container";
-            notificationContainer.style.position = "fixed";
-            notificationContainer.style.top = "20px";
-            notificationContainer.style.right = "20px";
-            notificationContainer.style.zIndex = "1000";
-            document.body.appendChild(notificationContainer);
+            container = document.createElement("div");
+            container.id = "notification-container";
+            container.style.position = "fixed";
+            container.style.top = "20px";
+            container.style.right = "20px";
+            container.style.zIndex = "1000";
+            document.body.appendChild(container);
         }
 
         const notification = document.createElement("div");

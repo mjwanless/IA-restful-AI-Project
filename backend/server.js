@@ -386,6 +386,40 @@ app.get("/api/admin/stats", authenticateToken, checkAdmin, async (req, res) => {
     }
 });
 
+app.delete("/api/admin/users/:id", authenticateToken, checkAdmin, async (req, res) => {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({ error: "User ID is required" });
+    }
+
+    try {
+        const { data: user, error: userError } = await supabase
+            .from("users")
+            .select("id")
+            .eq("id", id)
+            .single();
+
+        if (userError || !user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        const { error: deleteError } = await supabase
+            .from("users")
+            .delete()
+            .eq("id", id);
+
+        if (deleteError) {
+            throw deleteError;
+        }
+
+        res.json({ message: "User deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting user:", error);
+        res.status(500).json({ error: "Failed to delete user", details: error.message });
+    }
+});
+
+
 app.use((err, req, res, next) => {
     console.error("Server error:", err);
     res.status(500).json({
