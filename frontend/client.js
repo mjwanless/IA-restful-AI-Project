@@ -1,6 +1,16 @@
 document.addEventListener("DOMContentLoaded", function () {
-    const API_URL =
-        window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
+    // const API_URL =
+    //     window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
+    const API_URL = (() => {
+            if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+              return "http://localhost:3000/api";
+            } else if (window.location.hostname === "elegant-faun-14186b.netlify.app") {
+              return "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
+            } else {
+              // Default fallback
+              return "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
+            }
+    })();
 
     const generateBtn = document.getElementById("generateLyrics");
     const clearBtn = document.getElementById("clearBtn");

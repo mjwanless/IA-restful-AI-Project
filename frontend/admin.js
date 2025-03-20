@@ -1,6 +1,10 @@
 document.addEventListener("DOMContentLoaded", function () {
-    const ADMIN_API_URL =
-        window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
+    // const ADMIN_API_URL =
+    //     window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
+
+    const ADMIN_API_URL = API_URL;  // Use your API_URL from earlier
+    console.log("Using admin API URL:", ADMIN_API_URL);
+
 
     checkAdminStatus();
 
