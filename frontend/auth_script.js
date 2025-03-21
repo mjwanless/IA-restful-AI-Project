@@ -1,17 +1,12 @@
-// const API_URL =
-//     window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
-
-
 const API_URL = (() => {
-        if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-          return "http://localhost:3000/api";
-        } else if (window.location.hostname === "elegant-faun-14186b.netlify.app") {
-          return "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
-        } else {
-          // Default fallback
-          return "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
-        }
-})();    
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        return "http://localhost:3000/api/v1";
+    } else if (window.location.hostname === "elegant-faun-14186b.netlify.app") {
+        return "https://lyrics-generator-backend-883px.ondigitalocean.app/api/v1";
+    } else {
+        return "https://lyrics-generator-backend-883px.ondigitalocean.app/api/v1";
+    }
+})();
 console.log("Current hostname:", window.location.hostname);
 console.log("Using API URL:", API_URL);
 
@@ -205,7 +200,7 @@ async function fetchUserProfile() {
             JSON.stringify({
                 id: userData.id,
                 email: userData.email,
-                firstName: userData.firstName, 
+                firstName: userData.firstName,
                 isAdmin: userData.isAdmin,
                 apiCallsCount: userData.apiCallsCount,
             })
@@ -213,7 +208,6 @@ async function fetchUserProfile() {
 
         const userEmailElement = document.getElementById("userEmail");
         if (userEmailElement) {
-            // userEmailElement.textContent = userData.email;
             userEmailElement.textContent = userData.firstName;
         }
 
@@ -335,107 +329,6 @@ function showFormError(inputElement, message) {
     );
 }
 
-// async function handleSignup() {
-//     const emailInput = document.getElementById("signupEmail");
-//     const passwordInput = document.getElementById("signupPassword");
-//     const confirmPasswordInput = document.getElementById("confirmPassword");
-//     const termsCheckInput = document.getElementById("termsCheck");
-
-//     const email = emailInput.value;
-//     const password = passwordInput.value;
-//     const confirmPassword = confirmPasswordInput?.value;
-//     const termsCheck = termsCheckInput?.checked;
-
-//     let isValid = true;
-
-//     if (!email) {
-//         showFormError(emailInput, "Email is required");
-//         isValid = false;
-//     } else if (!validateEmail(email)) {
-//         showFormError(emailInput, "Please enter a valid email address");
-//         isValid = false;
-//     }
-
-//     if (!password) {
-//         showFormError(passwordInput, "Password is required");
-//         isValid = false;
-//     }
-
-//     if (confirmPasswordInput && password !== confirmPassword) {
-//         showFormError(confirmPasswordInput, "Passwords do not match");
-//         isValid = false;
-//     }
-
-//     if (termsCheckInput !== undefined && !termsCheck) {
-//         showFormError(termsCheckInput, "You must agree to the Terms & Conditions");
-//         isValid = false;
-//     }
-
-//     if (!isValid) return;
-
-//     try {
-//         const loadingNotification = showNotification("Creating your account...", "info");
-
-//         const response = await fetch(`${API_URL}/auth/register`, {
-//             method: "POST",
-//             headers: {
-//                 "Content-Type": "application/json",
-//             },
-//             body: JSON.stringify({
-//                 email,
-//                 password,
-//             }),
-//         });
-
-//         document.getElementById("notification-container").removeChild(loadingNotification);
-
-//         const responseData = await response.text();
-//         console.log("Full signup response:", responseData);
-
-//         if (!response.ok) {
-//             let errorMessage = "Registration failed";
-//             try {
-//                 const errorData = JSON.parse(responseData);
-//                 errorMessage = errorData.error || errorMessage;
-//             } catch {
-//                 errorMessage = responseData || errorMessage;
-//             }
-
-//             showNotification(errorMessage, "error");
-//             return;
-//         }
-
-//         let data;
-//         try {
-//             data = JSON.parse(responseData);
-//         } catch (parseError) {
-//             console.error("Failed to parse response:", parseError);
-//             showNotification("Invalid server response", "error");
-//             return;
-//         }
-
-//         localStorage.setItem("jwt_token", data.token);
-
-//         localStorage.setItem(
-//             "user_data",
-//             JSON.stringify({
-//                 id: data.user.id,
-//                 email: data.user.email,
-//                 isAdmin: data.user.isAdmin,
-//             })
-//         );
-
-//         showNotification("Registration successful! Redirecting to dashboard...", "success");
-
-//         setTimeout(() => {
-//             window.location.href = "landing.html";
-//         }, 2000);
-//     } catch (error) {
-//         console.error("Registration error:", error);
-//         showNotification("Network error. Please try again.", "error");
-//     }
-// }
-
 async function handleSignup() {
     const firstNameInput = document.getElementById("firstName");
     const firstName = firstNameInput.value.trim();
@@ -488,9 +381,9 @@ async function handleSignup() {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                first_name: firstName, // include first name
-                email,
-                password,
+                first_name: firstName,
+                email: email,
+                password: password,
             }),
         });
 
@@ -550,7 +443,6 @@ async function handleSignup() {
         showNotification("Network error. Please try again.", "error");
     }
 }
-
 
 function handleLogout() {
     localStorage.removeItem("jwt_token");

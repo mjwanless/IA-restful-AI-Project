@@ -1,7 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
-    // const ADMIN_API_URL =
-    //     window.location.hostname === "localhost" ? "http://localhost:3000/api" : "https://lyrics-generator-backend-883px.ondigitalocean.app/api";
-    const ADMIN_API_URL = API_URL;  // Use your API_URL from earlier
+    const ADMIN_API_URL = API_URL;
     console.log("Using admin API URL:", ADMIN_API_URL);
 
     checkAdminStatus();
@@ -81,7 +79,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 <td>${createdDate}</td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">
-                        <button class="btn btn-outline-secondary reset-api-btn me-2 rounded-pill" data-user-id="${user.id}" data-user-email="${user.email}">
+                        <button class="btn btn-outline-secondary reset-api-btn me-2 rounded-pill" data-user-id="${user.id}" data-user-email="${
+                user.email
+            }">
                             Reset API Count
                         </button>
                         <button class="btn btn-outline-danger delete-user-btn rounded-pill" data-user-id="${user.id}" data-user-email="${user.email}">
@@ -103,6 +103,7 @@ document.addEventListener("DOMContentLoaded", function () {
             button.addEventListener("click", function () {
                 const userId = this.dataset.userId;
                 const userEmail = this.dataset.userEmail;
+                console.log("User ID for deletion:", userId);
                 if (confirm(`Are you sure you want to delete user "${userEmail}"? This action cannot be undone.`)) {
                     deleteUser(userId);
                 }
@@ -142,6 +143,11 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!token) {
                 throw new Error("No authentication token found");
             }
+
+            console.log("Attempting to delete user with ID:", userId);
+            console.log("Using API URL:", `${ADMIN_API_URL}/admin/users/${userId}`);
+            console.log("JWT Token:", token);
+
             const response = await fetch(`${ADMIN_API_URL}/admin/users/${userId}`, {
                 method: "DELETE",
                 headers: {
@@ -149,16 +155,79 @@ document.addEventListener("DOMContentLoaded", function () {
                     "Content-Type": "application/json",
                 },
             });
+
+            console.log("Response status:", response.status);
+            console.log("Response headers:", Object.fromEntries(response.headers.entries()));
+
+            const responseBody = await response.text();
+            console.log("Response body:", responseBody);
+
             if (!response.ok) {
-                throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                throw new Error(`Server returned ${response.status}: ${responseBody}`);
             }
+
             showNotification("User deleted successfully", "success");
             fetchAllUsers();
         } catch (error) {
-            console.error("Error deleting user:", error);
+            console.error("FULL Error deleting user:", error);
             showNotification(`Failed to delete user: ${error.message}`, "error");
         }
     }
+
+    async function fetchEndpointStats() {
+        try {
+            const token = localStorage.getItem("jwt_token");
+            if (!token) {
+                throw new Error("No authentication token found");
+            }
+
+            const response = await fetch(`${ADMIN_API_URL}/admin/endpoint-stats`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            displayEndpointStats(data);
+        } catch (error) {
+            console.error("Error fetching endpoint stats:", error);
+            document.getElementById(
+                "endpointStatsBody"
+            ).innerHTML = `<tr><td colspan="3" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+            showNotification(`Failed to load endpoint statistics: ${error.message}`, "error");
+        }
+    }
+
+    function displayEndpointStats(stats) {
+        if (!stats || stats.length === 0) {
+            document.getElementById("endpointStatsBody").innerHTML =
+                '<tr><td colspan="3" class="text-center">No endpoint statistics available</td></tr>';
+            return;
+        }
+
+        const tableBody = document.getElementById("endpointStatsBody");
+        tableBody.innerHTML = "";
+
+        stats.forEach((stat) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+            <td>${stat.method}</td>
+            <td>${stat.endpoint}</td>
+            <td>${stat.calls}</td>
+        `;
+            tableBody.appendChild(row);
+        });
+    }
+
+    fetchEndpointStats();
+
+    document.getElementById("refreshStatsBtn").addEventListener("click", fetchEndpointStats);
 
     function showNotification(message, type = "info") {
         let container = document.getElementById("notification-container");
