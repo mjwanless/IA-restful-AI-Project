@@ -780,7 +780,7 @@ v1Router.get("/auth/verify-reset-token", async (req, res) => {
   }
 });
 
-v1Router.post(
+v1Router.put(
   "/auth/reset-password",
   resetPasswordValidation,
   validate,
