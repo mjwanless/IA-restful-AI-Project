@@ -175,7 +175,7 @@ paths:
                 $ref: '#/components/schemas/Error'
   
   /auth/reset-password:
-    post:
+    put:
       tags:
         - Authentication
       summary: Reset password
