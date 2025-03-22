@@ -470,3 +470,136 @@ style.textContent = `
 }
 `;
 document.head.appendChild(style);
+
+window.verifyResetToken = async function (token, email) {
+  try {
+    console.log(`Verifying token: ${token} for email: ${email}`);
+
+    const API_URL = (() => {
+      if (
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1"
+      ) {
+        return "http://localhost:3000/api/v1";
+      } else if (
+        window.location.hostname === "elegant-faun-14186b.netlify.app"
+      ) {
+        return "https://lyrics-generator-backend-883px.ondigitalocean.app/api/v1";
+      } else {
+        return "https://lyrics-generator-backend-883px.ondigitalocean.app/api/v1";
+      }
+    })();
+
+    const response = await fetch(
+      `${API_URL}/auth/verify-reset-token?token=${encodeURIComponent(
+        token
+      )}&email=${encodeURIComponent(email)}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const responseText = await response.text();
+    console.log("Token verification raw response:", responseText);
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error("Failed to parse response as JSON:", e);
+      return { success: false, error: "Invalid server response" };
+    }
+
+    console.log("Token verification parsed response:", data);
+
+    return {
+      success: response.ok && data.valid,
+      error: data.error || "Invalid or expired reset link",
+    };
+  } catch (error) {
+    console.error("Error verifying token:", error);
+    return { success: false, error: "Failed to verify reset token" };
+  }
+};
+
+window.handleResetPassword = async function (token, email, newPassword) {
+  try {
+    console.log("Resetting password for email:", email);
+
+    // Get the API URL
+    const API_URL = (() => {
+      if (
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1"
+      ) {
+        return "http://localhost:3000/api/v1";
+      } else if (
+        window.location.hostname === "elegant-faun-14186b.netlify.app"
+      ) {
+        return "https://lyrics-generator-backend-883px.ondigitalocean.app/api/v1";
+      } else {
+        return "https://lyrics-generator-backend-883px.ondigitalocean.app/api/v1";
+      }
+    })();
+
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        token: token,
+        email: email,
+        password: newPassword,
+      }),
+    });
+
+    const responseText = await response.text();
+    console.log("Reset password raw response:", responseText);
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error("Failed to parse response as JSON:", e);
+      return {
+        success: false,
+        message: "Invalid server response",
+      };
+    }
+
+    return {
+      success: response.ok,
+      message: response.ok
+        ? "Password reset successful!"
+        : data.error || "Failed to reset password",
+    };
+  } catch (error) {
+    console.error("Password reset error:", error);
+    return { success: false, message: "Network error. Please try again." };
+  }
+};
+
+window.handleForgotPassword = async function (email) {
+  try {
+    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    return {
+      success: true,
+      message:
+        "If that email exists in our system, a password reset link has been sent.",
+    };
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    return { success: false, message: "Network error. Please try again." };
+  }
+};

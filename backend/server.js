@@ -4,7 +4,9 @@ const dotenv = require("dotenv");
 const { createClient } = require("@supabase/supabase-js");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { validate, deepSanitize, registrationValidation, loginValidation, generateLyricsValidation, userIdValidation } = require("./validation");
+const { validate, deepSanitize, registrationValidation, loginValidation, generateLyricsValidation, userIdValidation, forgotPasswordValidation, resetPasswordValidation } = require("./validation");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 
 dotenv.config();
 
@@ -14,16 +16,18 @@ const supabase = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_KEY || s
 
 const app = express();
 app.use(
-    cors({
-        origin: [
-            "https://elegant-faun-14186b.netlify.app",
-            "https://lyrics-generator-backend-883px.ondigitalocean.app",
-            "http://localhost:5500",
-            "http://127.0.0.1:5500",
-        ],
-        methods: ["GET", "POST", "PUT", "DELETE"],
-        allowedHeaders: ["Content-Type", "Authorization"],
-    })
+  cors({
+    origin: [
+      "https://elegant-faun-14186b.netlify.app",
+      "https://lyrics-generator-backend-883px.ondigitalocean.app",
+      "http://localhost:5500",
+      "http://127.0.0.1:5500",
+      // Add any other origins that might be making the request
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true, // Add this if you're using cookies
+  })
 );
 app.use(express.json());
 
@@ -544,7 +548,6 @@ v1Router.get("/admin/endpoint-stats", authenticateToken, checkAdmin, async (req,
 app.use((err, req, res, next) => {
     console.error("Server error:", err);
 
-    // Handle validation errors specifically
     if (err.name === "ValidationError") {
         return res.status(400).json({
             error: "Validation Failed",
@@ -557,6 +560,283 @@ app.use((err, req, res, next) => {
         message: err.message || "An unexpected error occurred",
     });
 });
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
+  }
+});
+
+v1Router.post(
+  "/auth/forgot-password",
+  forgotPasswordValidation,
+  validate,
+  async (req, res) => {
+    console.log("FORGOT PASSWORD REQUEST RECEIVED:", req.body);
+
+    try {
+      const { email } = req.body;
+      console.log("Processing password reset for email:", email);
+
+      const { data: user, error: userError } = await supabase
+        .from("users")
+        .select("id, email, first_name")
+        .eq("email", email)
+        .single();
+
+      console.log(
+        "User lookup result:",
+        user ? "User found" : "User not found",
+        userError ? `Error: ${userError.message}` : "No error"
+      );
+
+      res.json({
+        message:
+          "If that email exists in our system, a password reset link has been sent.",
+      });
+
+      if (!user) {
+        console.log(
+          "No user found with that email, skipping reset token creation"
+        );
+        return;
+      }
+
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+      console.log("Generated reset token for user:", user.id);
+
+      try {
+        const { data: tableCheck, error: tableError } = await supabase
+          .from("password_reset_tokens")
+          .select("*")
+          .limit(1);
+
+        console.log(
+          "Table check result:",
+          tableError ? `Error: ${tableError.message}` : "Table exists"
+        );
+
+        if (tableError && tableError.code === "42P01") {
+          console.log(
+            "Creating password_reset_tokens table as it doesn't exist"
+          );
+
+          console.error(
+            "The password_reset_tokens table doesn't exist in the database!"
+          );
+          return;
+        }
+      } catch (tableCheckError) {
+        console.error("Error checking for table:", tableCheckError);
+      }
+
+      try {
+        const { error: deleteError } = await supabase
+          .from("password_reset_tokens")
+          .delete()
+          .eq("user_id", user.id);
+
+        if (deleteError) {
+          console.log("Error deleting existing tokens:", deleteError);
+        } else {
+          console.log("Cleared any existing tokens for user");
+        }
+      } catch (deleteErr) {
+        console.error("Error when trying to delete old tokens:", deleteErr);
+      }
+
+      console.log("Attempting to insert token with data:", {
+        user_id: user.id,
+        token: resetToken.substring(0, 10) + "...", // Only log part of the token for security
+        expires_at: resetTokenExpiry,
+        used: false,
+      });
+
+      const { data: insertData, error: insertError } = await supabase
+        .from("password_reset_tokens")
+        .insert([
+          {
+            user_id: user.id,
+            token: resetToken,
+            expires_at: resetTokenExpiry,
+            used: false,
+          },
+        ])
+        .select();
+
+      if (insertError) {
+        console.error("Error inserting reset token:", insertError);
+        console.error("Error code:", insertError.code);
+        console.error("Error message:", insertError.message);
+        console.error("Error details:", insertError.details);
+        return;
+      }
+
+      console.log(
+        "Reset token stored successfully:",
+        insertData ? "Data returned" : "No data returned"
+      );
+      console.log("About to attempt sending password reset email");
+
+        const resetUrl = `${
+          process.env.FRONTEND_URL
+        }reset_password.html?token=${resetToken}&email=${encodeURIComponent(
+          email
+        )}`;
+
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: "Password Reset - Lyrics Generator",
+        html: `
+<html>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
+    <h1 style="color: #4a6ee0;">Reset Your Password</h1>
+    <p>Hi ${user.first_name || "there"},</p>
+    <p>We received a request to reset your password for your Lyrics Generator account.</p>
+    <p>Click the button below to set a new password:</p>
+    <p style="text-align: center;">
+      <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #4a6ee0; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
+    </p>
+    <p><strong>Note:</strong> This link is valid for 1 hour.</p>
+    <p>If you didn't request this, please ignore this email or contact support if you have concerns.</p>
+    <p>Best regards,<br>The Lyrics Generator Team</p>
+  </div>
+</body>
+</html>
+`,
+      };
+
+      try {
+        console.log("Attempting to send email via transporter");
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Password reset email sent successfully:", info.messageId);
+      } catch (emailError) {
+        console.error("Failed to send password reset email:", emailError);
+        console.error("Email error details:", emailError.message);
+        if (emailError.code)
+          console.error("Email error code:", emailError.code);
+      }
+    } catch (error) {
+      console.error("Detailed password reset error:", error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: "Failed to process password reset",
+          message: error.message,
+        });
+      }
+    }
+  }
+);
+
+v1Router.get("/auth/verify-reset-token", async (req, res) => {
+  try {
+    const { token, email } = req.query;
+
+    if (!token || !email) {
+      return res.status(400).json({ error: "Missing token or email" });
+    }
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .single();
+
+    if (userError || !user) {
+      return res.status(400).json({ error: "Invalid reset request" });
+    }
+
+    const { data: tokenData, error: tokenError } = await supabase
+      .from("password_reset_tokens")
+      .select("*")
+      .eq("token", token)
+      .eq("user_id", user.id)
+      .eq("used", false)
+      .single();
+
+    if (tokenError || !tokenData) {
+      return res.status(400).json({ error: "Invalid or expired token" });
+    }
+
+    if (new Date(tokenData.expires_at) < new Date()) {
+      return res.status(400).json({ error: "Token has expired" });
+    }
+
+    res.json({ valid: true });
+  } catch (error) {
+    console.error("Token verification error:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to verify token", details: error.message });
+  }
+});
+
+v1Router.post(
+  "/auth/reset-password",
+  resetPasswordValidation,
+  validate,
+  async (req, res) => {
+    try {
+      const { token, email, password } = req.body;
+
+      const { data: user, error: userError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", email)
+        .single();
+
+      if (userError || !user) {
+        return res.status(400).json({ error: "Invalid reset request" });
+      }
+
+      const { data: tokenData, error: tokenError } = await supabase
+        .from("password_reset_tokens")
+        .select("*")
+        .eq("token", token)
+        .eq("user_id", user.id)
+        .eq("used", false)
+        .single();
+
+      if (tokenError || !tokenData) {
+        return res.status(400).json({ error: "Invalid or expired token" });
+      }
+
+      if (new Date(tokenData.expires_at) < new Date()) {
+        return res.status(400).json({ error: "Token has expired" });
+      }
+
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ password: hashedPassword })
+        .eq("id", user.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      await supabase
+        .from("password_reset_tokens")
+        .update({ used: true })
+        .eq("id", tokenData.id);
+
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res
+        .status(500)
+        .json({ error: "Failed to reset password", details: error.message });
+    }
+  }
+);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
