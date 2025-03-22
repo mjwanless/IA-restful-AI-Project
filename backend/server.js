@@ -7,6 +7,9 @@ const jwt = require("jsonwebtoken");
 const { validate, deepSanitize, registrationValidation, loginValidation, generateLyricsValidation, userIdValidation, forgotPasswordValidation, resetPasswordValidation } = require("./validation");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const swaggerUi = require("swagger-ui-express");
+const YAML = require("yamljs");
+const path = require("path");
 
 dotenv.config();
 
@@ -837,6 +840,10 @@ v1Router.post(
     }
   }
 );
+
+const swaggerDocument = YAML.load(path.join(__dirname, "swagger.yaml"));
+app.use("/doc", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
