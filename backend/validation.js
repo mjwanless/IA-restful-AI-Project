@@ -152,9 +152,13 @@ const deepSanitize = (obj) => {
 const forgotPasswordValidation = [body("email").trim().isEmail().withMessage(messages.validation.emailInvalid).normalizeEmail()];
 
 const resetPasswordValidation = [
-    body("token").notEmpty().withMessage(messages.validation.resetTokenRequired),
-    body("email").trim().isEmail().withMessage(messages.validation.emailInvalid).normalizeEmail(),
-    body("password").isLength({ min: 8 }).withMessage(messages.validation.passwordLength),
+  body("token").notEmpty().withMessage(messages.validation.resetTokenRequired),
+  body("email")
+    .trim()
+    .isEmail()
+    .withMessage(messages.validation.emailInvalid)
+    .normalizeEmail(),
+  body("password").notEmpty().withMessage(messages.validation.passwordRequired),
 ];
 
 module.exports = {
