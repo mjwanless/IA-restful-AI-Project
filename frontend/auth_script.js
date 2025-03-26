@@ -530,7 +530,7 @@ window.handleResetPassword = async function (token, email, newPassword) {
         })();
 
         const response = await fetch(`${API_URL}/auth/reset-password`, {
-            method: "POST",
+            method: "PUT",
             headers: {
                 "Content-Type": "application/json",
             },
