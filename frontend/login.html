@@ -2,79 +2,104 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Login - Lyrics Generator</title>
-        <link
-            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-            rel="stylesheet" />
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+        <style>
+            body {
+                background: linear-gradient(135deg, #f72585, #4cc9f0);
+                height: 100vh;
+                margin: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .card {
+                border-radius: 0.75rem;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+                width: 100%;
+                max-width: 400px;
+                border: none;
+            }
+            .card-header {
+                background: linear-gradient(to right, #b5179e, #7209b7);
+                color: #fff;
+                border-top-left-radius: 0.75rem;
+                border-top-right-radius: 0.75rem;
+                text-align: center;
+            }
+            .btn-primary {
+                background: linear-gradient(to right, #b5179e, #7209b7);
+                border: none;
+                transition: transform 0.3s ease;
+            }
+            .btn-primary:hover {
+                background: linear-gradient(to right, #7209b7, #b5179e);
+                transform: scale(1.05);
+            }
+            .btn-outline-primary {
+                border-color: #b5179e;
+                color: #b5179e;
+                transition: all 0.3s ease;
+            }
+            .btn-outline-primary:hover {
+                background: linear-gradient(to right, #b5179e, #7209b7);
+                color: white;
+                border-color: #7209b7;
+            }
+        </style>
     </head>
-    <body class="bg-white">
-        <div class="container py-5">
-            <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header bg-primary text-white">
-                            <h4 class="mb-0 text-center">Login</h4>
-                        </div>
-                        <div class="card-body p-4">
-                            <form>
-                                <div class="mb-3">
-                                    <label
-                                        for="loginEmail"
-                                        class="form-label"
-                                        >Email address</label
-                                    >
-                                    <input
-                                        type="email"
-                                        class="form-control"
-                                        id="loginEmail"
-                                        placeholder="name@example.com" />
-                                </div>
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <label for="loginPassword" class="form-label">Password</label>
-                                        <a href="forgot_password.html" class="small text-primary">Forgot Password?</a>
-                                    </div>
-                                    <input type="password" class="form-control" id="loginPassword" placeholder="Password" />
-                                </div>
-                                <div class="mb-3 form-check">
-                                    <input
-                                        type="checkbox"
-                                        class="form-check-input"
-                                        id="rememberCheck" />
-                                    <label
-                                        class="form-check-label"
-                                        for="rememberCheck"
-                                        >Remember me</label
-                                    >
-                                </div>
-                                <div class="d-grid">
-                                    <button
-                                        class="btn btn-primary"
-                                        id="loginBtn"
-                                        type="button">
-                                        Login
-                                    </button>
-                                </div>
-                                <div class="text-center mt-3">
-                                    <p>Don't have an account? <a href="signup.html">Sign Up</a></p>
-                                </div>
-                            </form>
-                        </div>
+    <body>
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0" id="loginTitle"></h4>
+            </div>
+            <div class="card-body p-4">
+                <form>
+                    <div class="mb-3">
+                        <label for="loginEmail" class="form-label" id="emailLabel"></label>
+                        <input type="email" class="form-control" id="loginEmail" placeholder="name@example.com" />
                     </div>
-                </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label for="loginPassword" class="form-label" id="passwordLabel"></label>
+                            <a href="forgot_password.html" class="small text-primary" id="forgotPasswordLink"></a>
+                        </div>
+                        <input type="password" class="form-control" id="loginPassword" placeholder="Password" />
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="rememberCheck" />
+                        <label class="form-check-label" for="rememberCheck" id="rememberMeLabel"></label>
+                    </div>
+                    <div class="d-grid">
+                        <button class="btn btn-primary" id="loginBtn" type="button"></button>
+                    </div>
+                    <div class="text-center mt-3">
+                        <p>
+                            <span id="noAccountText"></span>
+                            <a href="signup.html" id="signupLink"></a>
+                        </p>
+                    </div>
+                </form>
             </div>
         </div>
-
-        <div
-            id="notification-container"
-            style="position: fixed; top: 20px; right: 20px; z-index: 1000"></div>
-
+        <div id="notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 1000"></div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="frontend_messages.js"></script>
         <script src="auth_script.js"></script>
-
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                document.getElementById("loginTitle").textContent = frontendMessages.auth.loginTitle;
+                document.getElementById("emailLabel").textContent = frontendMessages.auth.emailLabel;
+                document.getElementById("passwordLabel").textContent = frontendMessages.auth.passwordLabel;
+                document.getElementById("forgotPasswordLink").textContent = frontendMessages.auth.forgotPassword;
+                document.getElementById("rememberMeLabel").textContent = frontendMessages.auth.rememberMe;
+                document.getElementById("loginBtn").textContent = frontendMessages.auth.loginButton;
+                document.getElementById("noAccountText").textContent = frontendMessages.auth.noAccount;
+                document.getElementById("signupLink").textContent = frontendMessages.auth.signupLink;
+                document.getElementById("loginEmail").placeholder = frontendMessages.auth.emailPlaceholder;
+                document.getElementById("loginPassword").placeholder = frontendMessages.auth.passwordPlaceholder;
+            });
         </script>
     </body>
 </html>

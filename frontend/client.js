@@ -18,6 +18,40 @@ document.addEventListener("DOMContentLoaded", function () {
     const statusBadge = document.getElementById("statusBadge");
     const apiCallsCountElement = document.getElementById("apiCallsCount");
 
+    // Update UI elements with messages from the centralized file
+    if (document.getElementById("titleGenerate")) {
+        document.getElementById("titleGenerate").textContent = frontendMessages.dashboard.generateLyricsTitle;
+    }
+    if (document.getElementById("artistLabel")) {
+        document.getElementById("artistLabel").textContent = frontendMessages.dashboard.artistStyleLabel;
+    }
+    if (document.getElementById("descLabel")) {
+        document.getElementById("descLabel").textContent = frontendMessages.dashboard.descriptionLabel;
+    }
+    if (document.getElementById("lengthLabel")) {
+        document.getElementById("lengthLabel").textContent = frontendMessages.dashboard.lyricsLengthLabel;
+    }
+    if (generateBtn) {
+        generateBtn.textContent = frontendMessages.dashboard.generateButton;
+    }
+    if (clearBtn) {
+        clearBtn.textContent = frontendMessages.dashboard.clearButton;
+    }
+    if (document.getElementById("titleLyrics")) {
+        document.getElementById("titleLyrics").textContent = frontendMessages.dashboard.generatedLyricsTitle;
+    }
+    if (statusBadge) {
+        statusBadge.textContent = frontendMessages.dashboard.statusReady;
+    }
+
+    // Set the options for the length select
+    const lengthOptions = lengthSelect ? lengthSelect.querySelectorAll("option") : [];
+    if (lengthOptions.length >= 3) {
+        lengthOptions[0].textContent = frontendMessages.dashboard.lengthShort;
+        lengthOptions[1].textContent = frontendMessages.dashboard.lengthMedium;
+        lengthOptions[2].textContent = frontendMessages.dashboard.lengthLong;
+    }
+
     updateApiCallsCount();
 
     generateBtn.addEventListener("click", async function () {
@@ -25,12 +59,12 @@ document.addEventListener("DOMContentLoaded", function () {
             const token = localStorage.getItem("jwt_token");
 
             if (!token) {
-                throw new Error("Not authenticated. Please log in again.");
+                throw new Error(frontendMessages.errors.sessionExpired);
             }
 
-            statusBadge.textContent = "Processing...";
+            statusBadge.textContent = frontendMessages.dashboard.statusProcessing;
             statusBadge.className = "badge bg-warning";
-            lyricsOutput.textContent = "Generating lyrics, please wait...";
+            lyricsOutput.textContent = frontendMessages.dashboard.generatingLyrics;
             generateBtn.disabled = true;
 
             const artist = artistInput.value.trim();
@@ -60,7 +94,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (response.status === 401 || response.status === 403) {
                     localStorage.removeItem("jwt_token");
                     window.location.href = "login.html";
-                    throw new Error("Session expired. Please log in again.");
+                    throw new Error(frontendMessages.errors.sessionExpired);
                 }
                 const errorData = await response.json();
                 throw new Error(errorData.message || `API returned ${response.status}: ${response.statusText}`);
@@ -70,7 +104,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (data && data.lyrics) {
                 lyricsOutput.textContent = data.lyrics;
-                statusBadge.textContent = "Success";
+                statusBadge.textContent = frontendMessages.dashboard.statusSuccess;
                 statusBadge.className = "badge bg-success";
 
                 if (data.apiCallsCount !== undefined && apiCallsCountElement) {
@@ -78,14 +112,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
 
                 if (data.limitReached) {
-                    showNotification(data.limitMessage || "You have reached your free tier limit of 20 API calls.", "warning");
+                    showNotification(data.limitMessage || frontendMessages.notifications.apiLimitReached, "warning");
                 }
             } else {
                 throw new Error("No lyrics field in response");
             }
         } catch (error) {
-            lyricsOutput.textContent = `Error: ${error.message}`;
-            statusBadge.textContent = "Error";
+            lyricsOutput.textContent = `${frontendMessages.errors.lyricsGenerationError}: ${error.message}`;
+            statusBadge.textContent = frontendMessages.dashboard.statusError;
             statusBadge.className = "badge bg-danger";
         } finally {
             generateBtn.disabled = false;
@@ -96,7 +130,7 @@ document.addEventListener("DOMContentLoaded", function () {
         artistInput.value = "";
         descInput.value = "";
         lyricsOutput.textContent = "";
-        statusBadge.textContent = "Ready";
+        statusBadge.textContent = frontendMessages.dashboard.statusReady;
         statusBadge.className = "badge bg-secondary";
     });
 
@@ -115,7 +149,7 @@ document.addEventListener("DOMContentLoaded", function () {
         })
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error("Failed to fetch profile");
+                    throw new Error(frontendMessages.errors.failedToFetchProfile);
                 }
                 return response.json();
             })

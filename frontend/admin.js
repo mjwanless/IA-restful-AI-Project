@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
     function checkAdminStatus() {
         const userData = JSON.parse(localStorage.getItem("user_data") || "{}");
         if (!userData.isAdmin) {
-            showNotification("Access denied. Admin privileges required.", "error");
+            showNotification(frontendMessages.notifications.accessDenied, "error");
             setTimeout(() => {
                 window.location.href = "landing.html";
             }, 2000);
@@ -30,9 +30,9 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             const token = localStorage.getItem("jwt_token");
             if (!token) {
-                throw new Error("No authentication token found");
+                throw new Error(frontendMessages.errors.noAuthToken);
             }
-            usersTableBody.innerHTML = '<tr><td colspan="4" class="text-center">Loading users...</td></tr>';
+            usersTableBody.innerHTML = `<tr><td colspan="4" class="text-center">${frontendMessages.admin.loadingUsers}</td></tr>`;
             const response = await fetch(`${ADMIN_API_URL}/admin/users`, {
                 method: "GET",
                 headers: {
@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
             if (!response.ok) {
                 if (response.status === 401 || response.status === 403) {
-                    throw new Error("Not authorized to view admin data");
+                    throw new Error(frontendMessages.errors.notAuthorizedForAdmin);
                 }
                 throw new Error(`Server returned ${response.status}: ${response.statusText}`);
             }
@@ -51,13 +51,13 @@ document.addEventListener("DOMContentLoaded", function () {
         } catch (error) {
             console.error("Error fetching users:", error);
             usersTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-            showNotification(`Failed to load users: ${error.message}`, "error");
+            showNotification(`${frontendMessages.errors.failedToLoadUsers}: ${error.message}`, "error");
         }
     }
 
     function displayUsers(users) {
         if (!users || users.length === 0) {
-            usersTableBody.innerHTML = '<tr><td colspan="4" class="text-center">No users found</td></tr>';
+            usersTableBody.innerHTML = `<tr><td colspan="4" class="text-center">${frontendMessages.admin.noUsers}</td></tr>`;
             return;
         }
         usersTableBody.innerHTML = "";
@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const createdDate = new Date(user.created_at).toLocaleString();
             row.innerHTML = `
                 <td>
-                    ${user.email} ${user.is_admin ? ' <span class="badge bg-info">Admin</span>' : ""}
+                    ${user.email} ${user.is_admin ? ` <span class="badge bg-info">${frontendMessages.admin.adminBadge}</span>` : ""}
                 </td>
                 <td>${user.apiCallsCount}</td>
                 <td>${createdDate}</td>
@@ -82,10 +82,10 @@ document.addEventListener("DOMContentLoaded", function () {
                         <button class="btn btn-outline-secondary reset-api-btn me-2 rounded-pill" data-user-id="${user.id}" data-user-email="${
                 user.email
             }">
-                            Reset API Count
+                            ${frontendMessages.admin.resetApiButton}
                         </button>
                         <button class="btn btn-outline-danger delete-user-btn rounded-pill" data-user-id="${user.id}" data-user-email="${user.email}">
-                            Delete
+                            ${frontendMessages.admin.deleteUserButton}
                         </button>
                     </div>
                 </td>
@@ -95,7 +95,18 @@ document.addEventListener("DOMContentLoaded", function () {
         document.querySelectorAll(".reset-api-btn").forEach((button) => {
             button.addEventListener("click", function () {
                 selectedUserId = this.dataset.userId;
-                resetUserEmail.textContent = this.dataset.userEmail;
+
+                const fullMessage = `${frontendMessages.admin.resetApiModalQuestion} "${this.dataset.userEmail}"?`;
+
+                const resetUserEmailElement = document.getElementById("resetUserEmail");
+                if (resetUserEmailElement) {
+                    resetUserEmailElement.textContent = fullMessage;
+                    resetUserEmailElement.innerText = fullMessage;
+                    resetUserEmailElement.innerHTML = fullMessage;
+                }
+
+                resetUserEmailElement.offsetHeight;
+
                 resetApiCountModal.show();
             });
         });
@@ -104,7 +115,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 const userId = this.dataset.userId;
                 const userEmail = this.dataset.userEmail;
                 console.log("User ID for deletion:", userId);
-                if (confirm(`Are you sure you want to delete user "${userEmail}"? This action cannot be undone.`)) {
+                if (confirm(`${frontendMessages.admin.deleteUserConfirm} "${userEmail}"? ${frontendMessages.admin.deleteUserWarning}`)) {
                     deleteUser(userId);
                 }
             });
@@ -116,7 +127,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!selectedUserId) return;
             const token = localStorage.getItem("jwt_token");
             if (!token) {
-                throw new Error("No authentication token found");
+                throw new Error(frontendMessages.errors.noAuthToken);
             }
             const response = await fetch(`${ADMIN_API_URL}/admin/reset-api-count/${selectedUserId}`, {
                 method: "POST",
@@ -129,11 +140,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 throw new Error(`Server returned ${response.status}: ${response.statusText}`);
             }
             resetApiCountModal.hide();
-            showNotification("API count reset successfully", "success");
+            showNotification(frontendMessages.notifications.apiCountResetSuccess, "success");
             fetchAllUsers();
         } catch (error) {
             console.error("Error resetting API count:", error);
-            showNotification(`Failed to reset API count: ${error.message}`, "error");
+            showNotification(`${frontendMessages.errors.failedToResetApiCount}: ${error.message}`, "error");
         }
     }
 
@@ -141,7 +152,7 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             const token = localStorage.getItem("jwt_token");
             if (!token) {
-                throw new Error("No authentication token found");
+                throw new Error(frontendMessages.errors.noAuthToken);
             }
 
             console.log("Attempting to delete user with ID:", userId);
@@ -166,11 +177,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 throw new Error(`Server returned ${response.status}: ${responseBody}`);
             }
 
-            showNotification("User deleted successfully", "success");
+            showNotification(frontendMessages.notifications.userDeletedSuccess, "success");
             fetchAllUsers();
         } catch (error) {
             console.error("FULL Error deleting user:", error);
-            showNotification(`Failed to delete user: ${error.message}`, "error");
+            showNotification(`${frontendMessages.errors.failedToDeleteUser}: ${error.message}`, "error");
         }
     }
 
@@ -178,7 +189,7 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             const token = localStorage.getItem("jwt_token");
             if (!token) {
-                throw new Error("No authentication token found");
+                throw new Error(frontendMessages.errors.noAuthToken);
             }
 
             const response = await fetch(`${ADMIN_API_URL}/admin/endpoint-stats`, {
@@ -200,14 +211,15 @@ document.addEventListener("DOMContentLoaded", function () {
             document.getElementById(
                 "endpointStatsBody"
             ).innerHTML = `<tr><td colspan="3" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-            showNotification(`Failed to load endpoint statistics: ${error.message}`, "error");
+            showNotification(`${frontendMessages.errors.failedToFetchStats}: ${error.message}`, "error");
         }
     }
 
     function displayEndpointStats(stats) {
         if (!stats || stats.length === 0) {
-            document.getElementById("endpointStatsBody").innerHTML =
-                '<tr><td colspan="3" class="text-center">No endpoint statistics available</td></tr>';
+            document.getElementById(
+                "endpointStatsBody"
+            ).innerHTML = `<tr><td colspan="3" class="text-center">${frontendMessages.admin.noStats}</td></tr>`;
             return;
         }
 
