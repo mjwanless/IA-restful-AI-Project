@@ -1,4 +1,5 @@
 const { body, param, validationResult } = require("express-validator");
+const messages = require("./messages");
 
 const sanitizeInput = (value) => {
     if (typeof value !== "string") return value;
@@ -40,88 +41,88 @@ const registrationValidation = [
     body("first_name")
         .trim()
         .notEmpty()
-        .withMessage("First name is required")
+        .withMessage(messages.validation.firstNameRequired)
         .isLength({ min: 2, max: 50 })
-        .withMessage("First name must be between 2 and 50 characters")
+        .withMessage(messages.validation.firstNameLength)
         .matches(/^[a-zA-Z\s]+$/)
-        .withMessage("First name can only contain letters")
+        .withMessage(messages.validation.firstNameFormat)
         .customSanitizer(sanitizeInput),
 
     body("email")
         .trim()
         .notEmpty()
-        .withMessage("Email is required")
+        .withMessage(messages.validation.emailRequired)
         .isEmail()
-        .withMessage("Invalid email format")
+        .withMessage(messages.validation.emailInvalid)
         .matches(emailValidationRegex)
-        .withMessage("Email format is invalid")
+        .withMessage(messages.validation.emailFormatInvalid)
         .normalizeEmail({
             gmail_remove_dots: false,
             gmail_remove_subaddress: false,
         })
         .customSanitizer(sanitizeInput),
 
-    body("password").notEmpty().withMessage("Password is required").customSanitizer(sanitizeInput),
+    body("password").notEmpty().withMessage(messages.validation.passwordRequired).customSanitizer(sanitizeInput),
 ];
 
 const loginValidation = [
     body("email")
         .trim()
         .notEmpty()
-        .withMessage("Email is required")
+        .withMessage(messages.validation.emailRequired)
         .isEmail()
-        .withMessage("Invalid email format")
+        .withMessage(messages.validation.emailInvalid)
         .matches(emailValidationRegex)
-        .withMessage("Email format is invalid")
+        .withMessage(messages.validation.emailFormatInvalid)
         .normalizeEmail({
             gmail_remove_dots: false,
             gmail_remove_subaddress: false,
         })
         .customSanitizer(sanitizeInput),
 
-    body("password").notEmpty().withMessage("Password is required").customSanitizer(sanitizeInput),
+    body("password").notEmpty().withMessage(messages.validation.passwordRequired).customSanitizer(sanitizeInput),
 ];
 
 const generateLyricsValidation = [
     body("artist")
         .trim()
         .notEmpty()
-        .withMessage("Artist is required")
+        .withMessage(messages.validation.artistRequired)
         .isLength({ max: 100 })
-        .withMessage("Artist name too long")
+        .withMessage(messages.validation.artistTooLong)
         .matches(/^[a-zA-Z0-9\s\-']+$/)
-        .withMessage("Artist name contains invalid characters")
+        .withMessage(messages.validation.artistInvalidChars)
         .customSanitizer(sanitizeInput),
 
     body("description")
         .trim()
         .notEmpty()
-        .withMessage("Description is required")
+        .withMessage(messages.validation.descriptionRequired)
         .isLength({ max: 500 })
-        .withMessage("Description too long")
+        .withMessage(messages.validation.descriptionTooLong)
         .matches(/^[a-zA-Z0-9\s\-.,!?']+$/)
-        .withMessage("Description contains invalid characters")
+        .withMessage(messages.validation.descriptionInvalidChars)
         .customSanitizer(sanitizeInput),
 
-    body("max_length").optional().isInt({ min: 50, max: 200 }).withMessage("Length must be between 50 and 200").toInt(),
+    body("max_length").optional().isInt({ min: 50, max: 200 }).withMessage(messages.validation.lengthRange).toInt(),
 ];
 
 const userIdValidation = [
     param("id")
         .trim()
         .notEmpty()
-        .withMessage("User ID is required")
+        .withMessage(messages.validation.userIdRequired)
         .custom((value) => {
             console.log("Received User ID for validation:", value);
 
             if (!value) {
-                throw new Error("User ID cannot be empty");
+                throw new Error(messages.validation.userIdEmpty);
             }
 
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             if (!uuidRegex.test(value)) {
                 console.error("Invalid UUID format:", value);
-                throw new Error("Invalid User ID format");
+                throw new Error(messages.validation.userIdInvalid);
             }
 
             return true;
@@ -148,34 +149,22 @@ const deepSanitize = (obj) => {
     return sanitizedObj;
 };
 
-const forgotPasswordValidation = [
-  body("email")
-    .trim()
-    .isEmail()
-    .withMessage("Please enter a valid email address")
-    .normalizeEmail(),
-];
+const forgotPasswordValidation = [body("email").trim().isEmail().withMessage(messages.validation.emailInvalid).normalizeEmail()];
 
 const resetPasswordValidation = [
-  body("token").notEmpty().withMessage("Reset token is required"),
-  body("email")
-    .trim()
-    .isEmail()
-    .withMessage("Please enter a valid email address")
-    .normalizeEmail(),
-  body("password")
-    .isLength({ min: 8 })
-    .withMessage("Password must be at least 8 characters long"),
+    body("token").notEmpty().withMessage(messages.validation.resetTokenRequired),
+    body("email").trim().isEmail().withMessage(messages.validation.emailInvalid).normalizeEmail(),
+    body("password").isLength({ min: 8 }).withMessage(messages.validation.passwordLength),
 ];
 
 module.exports = {
-  validate,
-  sanitizeInput,
-  deepSanitize,
-  registrationValidation,
-  loginValidation,
-  generateLyricsValidation,
-  userIdValidation,
-  forgotPasswordValidation,
-  resetPasswordValidation,
+    validate,
+    sanitizeInput,
+    deepSanitize,
+    registrationValidation,
+    loginValidation,
+    generateLyricsValidation,
+    userIdValidation,
+    forgotPasswordValidation,
+    resetPasswordValidation,
 };

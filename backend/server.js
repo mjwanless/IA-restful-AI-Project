@@ -4,12 +4,22 @@ const dotenv = require("dotenv");
 const { createClient } = require("@supabase/supabase-js");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { validate, deepSanitize, registrationValidation, loginValidation, generateLyricsValidation, userIdValidation, forgotPasswordValidation, resetPasswordValidation } = require("./validation");
+const {
+    validate,
+    deepSanitize,
+    registrationValidation,
+    loginValidation,
+    generateLyricsValidation,
+    userIdValidation,
+    forgotPasswordValidation,
+    resetPasswordValidation,
+} = require("./validation");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const swaggerUi = require("swagger-ui-express");
 const YAML = require("yamljs");
 const path = require("path");
+const messages = require("./messages");
 
 dotenv.config();
 
@@ -19,18 +29,17 @@ const supabase = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_KEY || s
 
 const app = express();
 app.use(
-  cors({
-    origin: [
-      "https://elegant-faun-14186b.netlify.app",
-      "https://lyrics-generator-backend-883px.ondigitalocean.app",
-      "http://localhost:5500",
-      "http://127.0.0.1:5500",
-      // Add any other origins that might be making the request
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true, // Add this if you're using cookies
-  })
+    cors({
+        origin: [
+            "https://elegant-faun-14186b.netlify.app",
+            "https://lyrics-generator-backend-883px.ondigitalocean.app",
+            "http://localhost:5500",
+            "http://127.0.0.1:5500",
+        ],
+        methods: ["GET", "POST", "PUT", "DELETE"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+        credentials: true,
+    })
 );
 app.use(express.json());
 
@@ -46,7 +55,7 @@ const authenticateToken = (req, res, next) => {
     const token = authHeader && authHeader.split(" ")[1];
 
     if (!token) {
-        return res.status(401).json({ error: "Authentication required" });
+        return res.status(401).json({ error: messages.auth.tokenRequired });
     }
 
     try {
@@ -55,7 +64,7 @@ const authenticateToken = (req, res, next) => {
         next();
     } catch (error) {
         console.error("Token verification error:", error);
-        return res.status(403).json({ error: "Invalid or expired token" });
+        return res.status(403).json({ error: messages.auth.tokenInvalid });
     }
 };
 
@@ -105,7 +114,7 @@ const checkAdmin = (req, res, next) => {
     if (!req.user.isAdmin) {
         return res.status(403).json({
             error: "Access denied",
-            message: "Admin privileges required for this operation",
+            message: messages.auth.accessDenied,
         });
     }
     next();
@@ -231,14 +240,14 @@ v1Router.post("/generate-lyrics", authenticateToken, generateLyricsValidation, v
             ...data,
             apiCallsCount: usageRow.api_calls_count,
             limitReached: hasReachedLimit,
-            limitMessage: hasReachedLimit ? "You have reached your free tier limit of 20 API calls." : null,
+            limitMessage: hasReachedLimit ? messages.api.apiLimitReached : null,
         });
     } catch (error) {
         if (error.name === "AbortError") {
-            return res.status(408).json({ error: "Request timed out" });
+            return res.status(408).json({ error: messages.api.lyricsTimeout });
         }
         console.error("Error generating lyrics:", error);
-        res.status(500).json({ error: "Failed to generate lyrics", details: error.message });
+        res.status(500).json({ error: messages.api.lyricsGenerationError, details: error.message });
     }
 });
 
@@ -247,7 +256,7 @@ v1Router.post("/auth/register", registrationValidation, validate, async (req, re
         const { first_name, email, password } = req.body;
 
         if (!first_name || !email || !password) {
-            return res.status(400).json({ error: "First name, email, and password are required" });
+            return res.status(400).json({ error: messages.auth.missingFields });
         }
 
         const saltRounds = 10;
@@ -292,7 +301,7 @@ v1Router.post("/auth/register", registrationValidation, validate, async (req, re
         );
 
         res.status(201).json({
-            message: "User registered successfully",
+            message: messages.auth.registerSuccess,
             token,
             user: {
                 id: newUser[0].id,
@@ -304,7 +313,7 @@ v1Router.post("/auth/register", registrationValidation, validate, async (req, re
     } catch (error) {
         console.error("FULL Registration error:", error);
         res.status(500).json({
-            error: "Failed to register user",
+            error: messages.error.registrationFailed,
             details: error.message,
         });
     }
@@ -315,25 +324,25 @@ v1Router.post("/auth/login", loginValidation, validate, async (req, res) => {
         const { email, password } = req.body;
 
         if (!email || !password) {
-            return res.status(400).json({ error: "Email and password are required" });
+            return res.status(400).json({ error: messages.auth.missingCredentials });
         }
 
         const { data: user, error: fetchError } = await supabase.from("users").select("*").eq("email", email).single();
 
         if (fetchError) {
             if (fetchError.code === "PGRST116") {
-                return res.status(401).json({ error: "Invalid email or password" });
+                return res.status(401).json({ error: messages.auth.loginFailure });
             }
             throw fetchError;
         }
 
         if (!user) {
-            return res.status(401).json({ error: "Invalid email or password" });
+            return res.status(401).json({ error: messages.auth.loginFailure });
         }
 
         const passwordMatch = await bcrypt.compare(password, user.password);
         if (!passwordMatch) {
-            return res.status(401).json({ error: "Invalid email or password" });
+            return res.status(401).json({ error: messages.auth.loginFailure });
         }
 
         const token = jwt.sign(
@@ -348,7 +357,7 @@ v1Router.post("/auth/login", loginValidation, validate, async (req, res) => {
         );
 
         res.json({
-            message: "Login successful",
+            message: messages.auth.loginSuccess,
             token,
             user: {
                 id: user.id,
@@ -360,7 +369,7 @@ v1Router.post("/auth/login", loginValidation, validate, async (req, res) => {
         });
     } catch (error) {
         console.error("Login error:", error);
-        res.status(500).json({ error: "Failed to login", details: error.message });
+        res.status(500).json({ error: messages.error.loginFailed, details: error.message });
     }
 });
 
@@ -374,10 +383,10 @@ v1Router.get("/user/profile", authenticateToken, async (req, res) => {
 
         if (userError) {
             console.error("Error fetching user:", userError);
-            return res.status(500).json({ error: "Database query error", details: userError.message });
+            return res.status(500).json({ error: messages.api.databaseError, details: userError.message });
         }
         if (!userData) {
-            return res.status(404).json({ error: "User not found" });
+            return res.status(404).json({ error: messages.api.userNotFound });
         }
 
         const { data: usageRow, error: usageSelectError } = await supabase
@@ -402,7 +411,7 @@ v1Router.get("/user/profile", authenticateToken, async (req, res) => {
         });
     } catch (error) {
         console.error("Error in user profile:", error);
-        res.status(500).json({ error: "Unexpected error", details: error.message });
+        res.status(500).json({ error: messages.api.serverError, details: error.message });
     }
 });
 
@@ -434,7 +443,7 @@ v1Router.get("/admin/users", authenticateToken, checkAdmin, async (req, res) => 
         res.json(usersWithUsage);
     } catch (error) {
         console.error("Error fetching admin users:", error);
-        res.status(500).json({ error: "Failed to fetch users", details: error.message });
+        res.status(500).json({ error: messages.error.failedToLoadUsers, details: error.message });
     }
 });
 
@@ -460,10 +469,10 @@ v1Router.post("/admin/reset-api-count/:userId", authenticateToken, checkAdmin, a
             }
         }
 
-        res.json({ success: true, message: "API call count reset successfully" });
+        res.json({ success: true, message: messages.api.apiCountReset });
     } catch (error) {
         console.error("Error resetting API count:", error);
-        res.status(500).json({ error: "Failed to reset API count", details: error.message });
+        res.status(500).json({ error: messages.error.failedToResetApiCount, details: error.message });
     }
 });
 
@@ -498,7 +507,7 @@ v1Router.get("/admin/stats", authenticateToken, checkAdmin, async (req, res) => 
     } catch (error) {
         console.error("Error fetching stats:", error);
         res.status(500).json({
-            error: "Failed to fetch statistics",
+            error: messages.error.failedToFetchStats,
             details: error.message,
         });
     }
@@ -508,14 +517,14 @@ v1Router.delete("/admin/users/:id", authenticateToken, checkAdmin, userIdValidat
     const { id } = req.params;
 
     if (!id) {
-        return res.status(400).json({ error: "User ID is required" });
+        return res.status(400).json({ error: messages.validation.userIdRequired });
     }
 
     try {
         const { data: user, error: userError } = await supabase.from("users").select("id").eq("id", id).single();
 
         if (userError || !user) {
-            return res.status(404).json({ error: "User not found" });
+            return res.status(404).json({ error: messages.api.userNotFound });
         }
         const { error: deleteError } = await supabase.from("users").delete().eq("id", id);
 
@@ -523,10 +532,10 @@ v1Router.delete("/admin/users/:id", authenticateToken, checkAdmin, userIdValidat
             throw deleteError;
         }
 
-        res.json({ message: "User deleted successfully" });
+        res.json({ message: messages.api.userDeleted });
     } catch (error) {
         console.error("Error deleting user:", error);
-        res.status(500).json({ error: "Failed to delete user", details: error.message });
+        res.status(500).json({ error: messages.error.failedToDeleteUser, details: error.message });
     }
 });
 
@@ -542,7 +551,7 @@ v1Router.get("/admin/endpoint-stats", authenticateToken, checkAdmin, async (req,
     } catch (error) {
         console.error("Error fetching API stats:", error);
         res.status(500).json({
-            error: "Failed to fetch API statistics",
+            error: messages.error.failedToFetchStats,
             details: error.message,
         });
     }
@@ -559,143 +568,108 @@ app.use((err, req, res, next) => {
     }
 
     res.status(500).json({
-        error: "Server error",
+        error: messages.api.serverError,
         message: err.message || "An unexpected error occurred",
     });
 });
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  }
+    service: "gmail",
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+    },
 });
 
-v1Router.post(
-  "/auth/forgot-password",
-  forgotPasswordValidation,
-  validate,
-  async (req, res) => {
+v1Router.post("/auth/forgot-password", forgotPasswordValidation, validate, async (req, res) => {
     console.log("FORGOT PASSWORD REQUEST RECEIVED:", req.body);
 
     try {
-      const { email } = req.body;
-      console.log("Processing password reset for email:", email);
+        const { email } = req.body;
+        console.log("Processing password reset for email:", email);
 
-      const { data: user, error: userError } = await supabase
-        .from("users")
-        .select("id, email, first_name")
-        .eq("email", email)
-        .single();
+        const { data: user, error: userError } = await supabase.from("users").select("id, email, first_name").eq("email", email).single();
 
-      console.log(
-        "User lookup result:",
-        user ? "User found" : "User not found",
-        userError ? `Error: ${userError.message}` : "No error"
-      );
+        console.log("User lookup result:", user ? "User found" : "User not found", userError ? `Error: ${userError.message}` : "No error");
 
-      res.json({
-        message:
-          "If that email exists in our system, a password reset link has been sent.",
-      });
+        res.json({
+            message: messages.auth.passwordResetSent,
+        });
 
-      if (!user) {
-        console.log(
-          "No user found with that email, skipping reset token creation"
-        );
-        return;
-      }
-
-      const resetToken = crypto.randomBytes(32).toString("hex");
-      const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
-
-      console.log("Generated reset token for user:", user.id);
-
-      try {
-        const { data: tableCheck, error: tableError } = await supabase
-          .from("password_reset_tokens")
-          .select("*")
-          .limit(1);
-
-        console.log(
-          "Table check result:",
-          tableError ? `Error: ${tableError.message}` : "Table exists"
-        );
-
-        if (tableError && tableError.code === "42P01") {
-          console.log(
-            "Creating password_reset_tokens table as it doesn't exist"
-          );
-
-          console.error(
-            "The password_reset_tokens table doesn't exist in the database!"
-          );
-          return;
+        if (!user) {
+            console.log("No user found with that email, skipping reset token creation");
+            return;
         }
-      } catch (tableCheckError) {
-        console.error("Error checking for table:", tableCheckError);
-      }
 
-      try {
-        const { error: deleteError } = await supabase
-          .from("password_reset_tokens")
-          .delete()
-          .eq("user_id", user.id);
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
 
-        if (deleteError) {
-          console.log("Error deleting existing tokens:", deleteError);
-        } else {
-          console.log("Cleared any existing tokens for user");
+        console.log("Generated reset token for user:", user.id);
+
+        try {
+            const { data: tableCheck, error: tableError } = await supabase.from("password_reset_tokens").select("*").limit(1);
+
+            console.log("Table check result:", tableError ? `Error: ${tableError.message}` : "Table exists");
+
+            if (tableError && tableError.code === "42P01") {
+                console.log("Creating password_reset_tokens table as it doesn't exist");
+
+                console.error("The password_reset_tokens table doesn't exist in the database!");
+                return;
+            }
+        } catch (tableCheckError) {
+            console.error("Error checking for table:", tableCheckError);
         }
-      } catch (deleteErr) {
-        console.error("Error when trying to delete old tokens:", deleteErr);
-      }
 
-      console.log("Attempting to insert token with data:", {
-        user_id: user.id,
-        token: resetToken.substring(0, 10) + "...", // Only log part of the token for security
-        expires_at: resetTokenExpiry,
-        used: false,
-      });
+        try {
+            const { error: deleteError } = await supabase.from("password_reset_tokens").delete().eq("user_id", user.id);
 
-      const { data: insertData, error: insertError } = await supabase
-        .from("password_reset_tokens")
-        .insert([
-          {
+            if (deleteError) {
+                console.log("Error deleting existing tokens:", deleteError);
+            } else {
+                console.log("Cleared any existing tokens for user");
+            }
+        } catch (deleteErr) {
+            console.error("Error when trying to delete old tokens:", deleteErr);
+        }
+
+        console.log("Attempting to insert token with data:", {
             user_id: user.id,
-            token: resetToken,
+            token: resetToken.substring(0, 10) + "...", // Only log part of the token for security
             expires_at: resetTokenExpiry,
             used: false,
-          },
-        ])
-        .select();
+        });
 
-      if (insertError) {
-        console.error("Error inserting reset token:", insertError);
-        console.error("Error code:", insertError.code);
-        console.error("Error message:", insertError.message);
-        console.error("Error details:", insertError.details);
-        return;
-      }
+        const { data: insertData, error: insertError } = await supabase
+            .from("password_reset_tokens")
+            .insert([
+                {
+                    user_id: user.id,
+                    token: resetToken,
+                    expires_at: resetTokenExpiry,
+                    used: false,
+                },
+            ])
+            .select();
 
-      console.log(
-        "Reset token stored successfully:",
-        insertData ? "Data returned" : "No data returned"
-      );
-      console.log("About to attempt sending password reset email");
+        if (insertError) {
+            console.error("Error inserting reset token:", insertError);
+            console.error("Error code:", insertError.code);
+            console.error("Error message:", insertError.message);
+            console.error("Error details:", insertError.details);
+            return;
+        }
 
-        const resetUrl = `${
-          process.env.FRONTEND_URL
-        }reset_password.html?token=${resetToken}&email=${encodeURIComponent(
-          email
-        )}`;
+        console.log("Reset token stored successfully:", insertData ? "Data returned" : "No data returned");
+        console.log("About to attempt sending password reset email");
 
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: user.email,
-        subject: "Password Reset - Lyrics Generator",
-        html: `
+        const resetUrl = `${process.env.FRONTEND_URL}reset_password.html?token=${resetToken}&email=${encodeURIComponent(email)}`;
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: "Password Reset - Lyrics Generator",
+            html: `
 <html>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
   <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
@@ -713,137 +687,111 @@ v1Router.post(
 </body>
 </html>
 `,
-      };
+        };
 
-      try {
-        console.log("Attempting to send email via transporter");
-        const info = await transporter.sendMail(mailOptions);
-        console.log("Password reset email sent successfully:", info.messageId);
-      } catch (emailError) {
-        console.error("Failed to send password reset email:", emailError);
-        console.error("Email error details:", emailError.message);
-        if (emailError.code)
-          console.error("Email error code:", emailError.code);
-      }
+        try {
+            console.log("Attempting to send email via transporter");
+            const info = await transporter.sendMail(mailOptions);
+            console.log("Password reset email sent successfully:", info.messageId);
+        } catch (emailError) {
+            console.error("Failed to send password reset email:", emailError);
+            console.error("Email error details:", emailError.message);
+            if (emailError.code) console.error("Email error code:", emailError.code);
+        }
     } catch (error) {
-      console.error("Detailed password reset error:", error);
-      if (!res.headersSent) {
-        res.status(500).json({
-          error: "Failed to process password reset",
-          message: error.message,
-        });
-      }
+        console.error("Detailed password reset error:", error);
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: messages.error.failedToResetPassword,
+                message: error.message,
+            });
+        }
     }
-  }
-);
-
-v1Router.get("/auth/verify-reset-token", async (req, res) => {
-  try {
-    const { token, email } = req.query;
-
-    if (!token || !email) {
-      return res.status(400).json({ error: "Missing token or email" });
-    }
-
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", email)
-      .single();
-
-    if (userError || !user) {
-      return res.status(400).json({ error: "Invalid reset request" });
-    }
-
-    const { data: tokenData, error: tokenError } = await supabase
-      .from("password_reset_tokens")
-      .select("*")
-      .eq("token", token)
-      .eq("user_id", user.id)
-      .eq("used", false)
-      .single();
-
-    if (tokenError || !tokenData) {
-      return res.status(400).json({ error: "Invalid or expired token" });
-    }
-
-    if (new Date(tokenData.expires_at) < new Date()) {
-      return res.status(400).json({ error: "Token has expired" });
-    }
-
-    res.json({ valid: true });
-  } catch (error) {
-    console.error("Token verification error:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to verify token", details: error.message });
-  }
 });
 
-v1Router.put(
-  "/auth/reset-password",
-  resetPasswordValidation,
-  validate,
-  async (req, res) => {
+v1Router.get("/auth/verify-reset-token", async (req, res) => {
     try {
-      const { token, email, password } = req.body;
+        const { token, email } = req.query;
 
-      const { data: user, error: userError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", email)
-        .single();
+        if (!token || !email) {
+            return res.status(400).json({ error: "Missing token or email" });
+        }
 
-      if (userError || !user) {
-        return res.status(400).json({ error: "Invalid reset request" });
-      }
+        const { data: user, error: userError } = await supabase.from("users").select("id").eq("email", email).single();
 
-      const { data: tokenData, error: tokenError } = await supabase
-        .from("password_reset_tokens")
-        .select("*")
-        .eq("token", token)
-        .eq("user_id", user.id)
-        .eq("used", false)
-        .single();
+        if (userError || !user) {
+            return res.status(400).json({ error: messages.auth.invalidResetRequest });
+        }
 
-      if (tokenError || !tokenData) {
-        return res.status(400).json({ error: "Invalid or expired token" });
-      }
+        const { data: tokenData, error: tokenError } = await supabase
+            .from("password_reset_tokens")
+            .select("*")
+            .eq("token", token)
+            .eq("user_id", user.id)
+            .eq("used", false)
+            .single();
 
-      if (new Date(tokenData.expires_at) < new Date()) {
-        return res.status(400).json({ error: "Token has expired" });
-      }
+        if (tokenError || !tokenData) {
+            return res.status(400).json({ error: messages.auth.invalidToken });
+        }
 
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
+        if (new Date(tokenData.expires_at) < new Date()) {
+            return res.status(400).json({ error: messages.auth.tokenExpired });
+        }
 
-      const { error: updateError } = await supabase
-        .from("users")
-        .update({ password: hashedPassword })
-        .eq("id", user.id);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      await supabase
-        .from("password_reset_tokens")
-        .update({ used: true })
-        .eq("id", tokenData.id);
-
-      res.json({ message: "Password updated successfully" });
+        res.json({ valid: true });
     } catch (error) {
-      console.error("Password reset error:", error);
-      res
-        .status(500)
-        .json({ error: "Failed to reset password", details: error.message });
+        console.error("Token verification error:", error);
+        res.status(500).json({ error: messages.error.failedToResetPassword, details: error.message });
     }
-  }
-);
+});
+
+v1Router.put("/auth/reset-password", resetPasswordValidation, validate, async (req, res) => {
+    try {
+        const { token, email, password } = req.body;
+
+        const { data: user, error: userError } = await supabase.from("users").select("id").eq("email", email).single();
+
+        if (userError || !user) {
+            return res.status(400).json({ error: messages.auth.invalidResetRequest });
+        }
+
+        const { data: tokenData, error: tokenError } = await supabase
+            .from("password_reset_tokens")
+            .select("*")
+            .eq("token", token)
+            .eq("user_id", user.id)
+            .eq("used", false)
+            .single();
+
+        if (tokenError || !tokenData) {
+            return res.status(400).json({ error: messages.auth.invalidToken });
+        }
+
+        if (new Date(tokenData.expires_at) < new Date()) {
+            return res.status(400).json({ error: messages.auth.tokenExpired });
+        }
+
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        const { error: updateError } = await supabase.from("users").update({ password: hashedPassword }).eq("id", user.id);
+
+        if (updateError) {
+            throw updateError;
+        }
+
+        await supabase.from("password_reset_tokens").update({ used: true }).eq("id", tokenData.id);
+
+        res.json({ message: messages.auth.passwordResetSuccess });
+    } catch (error) {
+        console.error("Password reset error:", error);
+        res.status(500).json({ error: messages.error.failedToResetPassword, details: error.message });
+    }
+});
 
 const swaggerDocument = YAML.load(path.join(__dirname, "swagger.yaml"));
 app.use("/doc", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
