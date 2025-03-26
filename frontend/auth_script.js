@@ -117,7 +117,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    if (currentPage === "signup.html" || currentPage === "login") {
+    if (currentPage === "signup.html" || currentPage === "signup") {
         const registerBtn = document.getElementById("registerBtn");
         if (registerBtn) {
             registerBtn.addEventListener("click", handleSignup);
